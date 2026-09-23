@@ -5,7 +5,7 @@ import type { ExerciseDefinition } from "./types";
  * Push-up, filmed from the side.
  *
  * Metrics
- *  - elbow:      shoulder–elbow–wrist angle (3D). ~170° locked out, ~80° at the bottom.
+ *  - elbow:      shoulder–elbow–wrist angle (2D, side view). ~170° locked out, ~80° at the bottom.
  *  - hipOffset:  how far the hip sits below (+) or above (−) the shoulder→ankle line,
  *                as a fraction of body length. ~0 for a straight plank.
  *  - torsoAngle: hip→shoulder angle from vertical. ~90° when horizontal.
@@ -32,7 +32,7 @@ export const pushup: ExerciseDefinition = {
     const ankle = ctx.image("ankle");
     const bodyLength = distance(shoulder, ankle);
     return {
-      elbow: jointAngle(ctx.world("shoulder"), ctx.world("elbow"), ctx.world("wrist")),
+      elbow: jointAngle(shoulder, ctx.image("elbow"), ctx.image("wrist")),
       hipOffset: bodyLength > 0 ? offsetBelowLine(hip, shoulder, ankle) / bodyLength : NaN,
       torsoAngle: angleFromVertical(hip, shoulder),
     };

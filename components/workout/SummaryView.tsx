@@ -20,7 +20,7 @@ export function SummaryView({ summary, onRestart }: { summary: WorkoutSummary; o
 
   return (
     <main className="safe-top safe-bottom mx-auto flex min-h-dvh w-full max-w-md flex-col px-4">
-      <p className="pt-6 text-sm font-semibold uppercase tracking-wider text-zinc-500">Set complete</p>
+      <p className="pt-6 text-sm font-semibold uppercase tracking-wider text-zinc-400">Set complete</p>
       <h1 className="text-3xl font-bold">{summary.exerciseName}</h1>
 
       <div className="mt-6 rounded-3xl border border-white/10 bg-zinc-900/60 p-6 text-center">
@@ -64,13 +64,13 @@ export function SummaryView({ summary, onRestart }: { summary: WorkoutSummary; o
             {issues.slice(1).map((i) => (
               <li key={i.ruleId} className="flex justify-between gap-2">
                 <span>{i.message}</span>
-                <span className="tabular-nums text-zinc-500">×{i.count}</span>
+                <span className="tabular-nums text-zinc-400">×{i.count}</span>
               </li>
             ))}
           </ul>
         )}
         {partialReps > 0 && (
-          <p className="mt-3 text-xs text-zinc-500">
+          <p className="mt-3 text-xs text-zinc-400">
             {partialReps} partial rep{partialReps === 1 ? "" : "s"} didn&apos;t reach full depth and weren&apos;t counted.
           </p>
         )}

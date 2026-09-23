@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { angleFromVertical, jointAngle, offsetBelowLine } from "@/lib/pose/angles";
+import { angleFromVertical, jointAngle, offsetBelowLine, thighDepthAngle } from "@/lib/pose/angles";
 
 describe("jointAngle", () => {
   it("is 180° for a straight limb", () => {
@@ -36,5 +36,23 @@ describe("offsetBelowLine", () => {
     expect(offsetBelowLine(below, right, left)).toBeCloseTo(0.2);
     expect(offsetBelowLine(above, left, right)).toBeCloseTo(-0.2);
     expect(offsetBelowLine(above, right, left)).toBeCloseTo(-0.2);
+  });
+});
+
+describe("thighDepthAngle", () => {
+  const knee = { x: 0, y: 1 };
+  const ankle = { x: 0, y: 2 };
+  it("reads 180° when standing (hip straight above knee)", () => {
+    expect(thighDepthAngle({ x: 0, y: 0 }, knee, ankle)).toBeCloseTo(180);
+  });
+  it("reads 90° when the thigh is parallel to the floor", () => {
+    expect(thighDepthAngle({ x: 1, y: 1 }, knee, ankle)).toBeCloseTo(90);
+  });
+  it("reads below 90° when the hip drops below the knee", () => {
+    expect(thighDepthAngle({ x: 0.9, y: 1.3 }, knee, ankle)).toBeLessThan(90);
+  });
+  it("ignores shin tilt: a forward-leaning shin doesn't change depth", () => {
+    const tiltedAnkle = { x: -0.5, y: 1 + Math.sqrt(0.75) }; // same shin length, tilted 30°
+    expect(thighDepthAngle({ x: 1, y: 1 }, knee, tiltedAnkle)).toBeCloseTo(90);
   });
 });

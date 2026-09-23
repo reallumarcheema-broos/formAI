@@ -120,3 +120,28 @@ export function offsetBelowLine(p: Vec, a: Vec, b: Vec): number {
   // so flip the sign when the line runs right-to-left.
   return b.x >= a.x ? d : -d;
 }
+
+/**
+ * Squat/lunge depth expressed as an "equivalent knee angle", measured from how
+ * far the thigh has dropped toward horizontal:
+ *
+ *   rise = knee.y − hip.y         vertical drop from hip to knee (y grows down)
+ *   α    = acos(rise / |knee→ankle|)   thigh angle from vertical, using shin
+ *                                      length as the thigh-length reference
+ *   depth = 180° − α
+ *
+ * Standing tall reads ~180°, thighs parallel to the floor reads 90°, and hips
+ * below the knees read < 90°. Unlike a raw knee angle this is correct from the
+ * FRONT as well as the side (vertical distances aren't foreshortened when the
+ * camera is level) and ignores how far the shins tilt forward — which is
+ * exactly what "depth" means in coaching terms.
+ *
+ * Why not MediaPipe's 3D world landmarks? Their depth (z) estimate is noisy
+ * enough that a person standing perfectly straight can read ~140° at the knee.
+ */
+export function thighDepthAngle(hip: Vec, knee: Vec, ankle: Vec): number {
+  const shin = Math.hypot(ankle.x - knee.x, ankle.y - knee.y);
+  if (shin === 0) return NaN;
+  const rise = knee.y - hip.y;
+  return 180 - Math.acos(clampUnit(rise / shin)) * RAD_TO_DEG;
+}

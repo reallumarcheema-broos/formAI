@@ -1,12 +1,13 @@
-import { angleFromVertical, jointAngle } from "@/lib/pose/angles";
+import { angleFromVertical, jointAngle, thighDepthAngle } from "@/lib/pose/angles";
 import type { ExerciseDefinition } from "./types";
 
 /**
- * Bodyweight / goblet squat.
+ * Bodyweight / goblet squat. Works from the front or the side.
  *
- * Metrics
- *  - knee:       hip–knee–ankle angle (3D). ~175° standing, ~90° at parallel.
- *  - hip:        shoulder–hip–knee angle (3D). Informational.
+ * Metrics (all from 2D image landmarks)
+ *  - depth:      thigh drop as an equivalent knee angle (see thighDepthAngle):
+ *                ~180° standing, 90° thighs parallel, < 90° below parallel.
+ *  - knee:       hip–knee–ankle angle (side view only). Informational.
  *  - torsoLean:  hip→shoulder angle from vertical (side view only).
  *  - kneeWidth:  knee spread ÷ ankle spread (front view only). < 1 means knees drifting in.
  */
@@ -14,7 +15,7 @@ export const squat: ExerciseDefinition = {
   id: "squat",
   name: "Squat",
   tagline: "Depth, knee tracking and chest position",
-  tier: "free",
+  tier: "pro",
   icon: "🏋️",
   setup: {
     view: "front or side",
@@ -27,31 +28,30 @@ export const squat: ExerciseDefinition = {
   requiredJoints: ["shoulder", "hip", "knee", "ankle"],
 
   computeMetrics(ctx) {
-    const knee = (s: "left" | "right") => jointAngle(ctx.world("hip", s), ctx.world("knee", s), ctx.world("ankle", s));
-    const hip = (s: "left" | "right") => jointAngle(ctx.world("shoulder", s), ctx.world("hip", s), ctx.world("knee", s));
+    const depth = (s: "left" | "right") => thighDepthAngle(ctx.image("hip", s), ctx.image("knee", s), ctx.image("ankle", s));
 
     if (ctx.view === "front") {
       // Both legs are visible from the front: average them for stability.
       const kneeSpread = Math.abs(ctx.image("knee", "left").x - ctx.image("knee", "right").x);
       const ankleSpread = Math.abs(ctx.image("ankle", "left").x - ctx.image("ankle", "right").x);
       return {
-        knee: (knee("left") + knee("right")) / 2,
-        hip: (hip("left") + hip("right")) / 2,
-        torsoLean: NaN, // lean is foreshortened from the front — can't judge it
+        depth: (depth("left") + depth("right")) / 2,
+        knee: NaN, // the knee bends toward the camera — its 2D angle is meaningless from the front
+        torsoLean: NaN, // lean is foreshortened from the front
         kneeWidth: ankleSpread > 0.01 ? kneeSpread / ankleSpread : NaN,
       };
     }
 
     return {
-      knee: knee(ctx.side),
-      hip: hip(ctx.side),
+      depth: depth(ctx.side),
+      knee: jointAngle(ctx.image("hip"), ctx.image("knee"), ctx.image("ankle")),
       torsoLean: angleFromVertical(ctx.image("hip"), ctx.image("shoulder")),
       kneeWidth: NaN, // knee tracking isn't visible from the side
     };
   },
 
   rep: {
-    metric: "knee",
+    metric: "depth",
     direction: "decreasing",
     topThreshold: 160, // standing
     startThreshold: 145, // clearly started descending
@@ -65,8 +65,8 @@ export const squat: ExerciseDefinition = {
       message: "Go a bit lower",
       checkPartial: true,
       highlight: ["hip", "knee"],
-      // Thighs roughly parallel ≈ knee angle ≤ 100°.
-      isViolated: ({ min }) => min.knee > 100,
+      // 100° ≈ thighs within 10° of parallel.
+      isViolated: ({ min }) => min.depth > 100,
     },
     {
       id: "squat-knees-in",

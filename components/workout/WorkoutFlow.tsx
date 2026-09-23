@@ -16,6 +16,8 @@ type Stage = "setup" | "countdown" | "active" | "paused" | "summary";
 
 interface Hud {
   reps: number;
+  /** Any person detected at all. */
+  person: boolean;
   /** Required joints visible right now. */
   tracking: boolean;
   /** Body has been fully visible for a moment (setup check is green). */
@@ -32,6 +34,8 @@ interface Feedback {
 
 /** Frames the body must stay visible before the setup check turns green (~0.5s). */
 const BODY_READY_FRAMES = 15;
+/** Consecutive bad frames before a green check turns amber again, so it doesn't flicker. */
+const BODY_LOST_FRAMES = 10;
 const FEEDBACK_MS = 2500;
 const MUTE_KEY = "formai:muted";
 
@@ -45,10 +49,23 @@ const JOINT_LABELS: Record<JointName, string> = {
   foot: "feet",
 };
 
-function missingText(missing: JointName[]): string {
+function missingText(person: boolean, missing: JointName[]): string {
   const labels = [...new Set(missing.map((j) => JOINT_LABELS[j]))];
-  if (!labels.length) return "Step into the frame";
+  if (!person || !labels.length) return "Step into the frame";
   return `Can't see your ${labels.join(", ")}`;
+}
+
+interface DebugInfo {
+  phase: string;
+  tracking: boolean;
+  inPosition: boolean;
+  metrics: Record<string, number> | null;
+}
+
+/** `?debug=1` shows live metrics, handy for tuning thresholds on real bodies. */
+function useDebugFlag(): boolean {
+  const [debug] = useState(() => new URLSearchParams(window.location.search).has("debug"));
+  return debug;
 }
 
 export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
@@ -65,9 +82,12 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
     }
   });
   const [countdown, setCountdown] = useState(3);
-  const [hud, setHud] = useState<Hud>({ reps: 0, tracking: false, bodyReady: false, inPosition: true, missing: [] });
+  const [hud, setHud] = useState<Hud>({ reps: 0, person: false, tracking: false, bodyReady: false, inPosition: true, missing: [] });
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
+  const debug = useDebugFlag();
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
+  const lastDebugAtRef = useRef(0);
 
   const stageRef = useRef<Stage>(stage);
   const engineRef = useRef<ExerciseEngine | null>(null);
@@ -75,6 +95,9 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
   const hudRef = useRef(hud);
   const mutedRef = useRef(muted);
   const stableFramesRef = useRef(0);
+  const lostFramesRef = useRef(0);
+  /** "auto" hides the setup tips once the body is detected; a tap pins them open or closed. */
+  const [tipsMode, setTipsMode] = useState<"auto" | "open" | "closed">("auto");
   const lastFeedbackRef = useRef({ text: "", at: 0 });
   const activeMsRef = useRef(0);
   const activeSinceRef = useRef<number | null>(null);
@@ -137,6 +160,7 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
     const next = { ...prev, ...patch };
     const changed =
       next.reps !== prev.reps ||
+      next.person !== prev.person ||
       next.tracking !== prev.tracking ||
       next.bodyReady !== prev.bodyReady ||
       next.inPosition !== prev.inPosition ||
@@ -180,7 +204,17 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
         const { snapshot, events } = engine.process(frame);
         handleEvents(events);
         const body = checkBodyVisible(frame?.normalized ?? null, exercise.requiredJoints);
+        if (debug && performance.now() - lastDebugAtRef.current > 150) {
+          lastDebugAtRef.current = performance.now();
+          setDebugInfo({
+            phase: snapshot.phase,
+            tracking: snapshot.tracking,
+            inPosition: snapshot.inPosition,
+            metrics: snapshot.metrics,
+          });
+        }
         updateHud({
+          person: frame !== null,
           reps: snapshot.repCount,
           tracking: snapshot.tracking,
           inPosition: snapshot.inPosition,
@@ -193,14 +227,22 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
 
       // Setup / countdown / paused: just run the full-body check.
       const body = checkBodyVisible(frame?.normalized ?? null, exercise.requiredJoints);
-      stableFramesRef.current = body.ok ? stableFramesRef.current + 1 : 0;
-      updateHud({
-        tracking: body.ok,
-        bodyReady: stableFramesRef.current >= BODY_READY_FRAMES,
-        missing: body.missing,
-      });
+      // Hysteresis: turn green after a steady run of good frames, and only turn
+      // amber again after a steady run of bad ones.
+      if (body.ok) {
+        stableFramesRef.current += 1;
+        lostFramesRef.current = 0;
+      } else {
+        lostFramesRef.current += 1;
+        if (lostFramesRef.current >= BODY_LOST_FRAMES) stableFramesRef.current = 0;
+      }
+      const wasReady = hudRef.current.bodyReady;
+      const bodyReady = wasReady
+        ? lostFramesRef.current < BODY_LOST_FRAMES
+        : body.ok && stableFramesRef.current >= BODY_READY_FRAMES;
+      updateHud({ person: frame !== null, tracking: body.ok, bodyReady, missing: body.missing });
     },
-    [exercise, handleEvents, showFeedback, updateHud],
+    [debug, exercise, handleEvents, showFeedback, updateHud],
   );
 
   // ---- controls ---------------------------------------------------------------
@@ -234,7 +276,9 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
     activeMsRef.current = 0;
     activeSinceRef.current = null;
     stableFramesRef.current = 0;
-    hudRef.current = { reps: 0, tracking: false, bodyReady: false, inPosition: true, missing: [] };
+    lostFramesRef.current = 0;
+    setTipsMode("auto");
+    hudRef.current = { reps: 0, person: false, tracking: false, bodyReady: false, inPosition: true, missing: [] };
     setHud(hudRef.current);
     setFeedback(null);
     setSummary(null);
@@ -246,10 +290,9 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
   }
 
   const inSet = stage === "active" || stage === "paused";
+  const showTips = tipsMode === "open" || (tipsMode === "auto" && !hud.bodyReady);
 
-  return (
-    <CameraStage facing={facing} onFrame={onFrame}>
-      {/* Top bar */}
+  const topBar = (
       <div className="safe-top absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-2 bg-gradient-to-b from-black/70 to-transparent px-3 pb-6">
         <Link
           href="/"
@@ -279,12 +322,20 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
           </button>
         </div>
       </div>
+  );
 
+  return (
+    <CameraStage facing={facing} onFrame={onFrame} topBar={topBar}>
       {/* Rep counter + feedback */}
       {inSet && (
         <div className="pointer-events-none absolute inset-x-0 top-20 z-10 flex flex-col items-center gap-3 px-4">
           <div className="rounded-3xl bg-black/55 px-8 py-2 text-center backdrop-blur">
-            <p key={hud.reps} className="animate-pop text-8xl font-black leading-none tabular-nums" aria-live="polite">
+            <p
+              key={hud.reps}
+              data-testid="rep-count"
+              className="animate-pop text-8xl font-black leading-none tabular-nums"
+              aria-live="polite"
+            >
               {hud.reps}
             </p>
             <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">reps</p>
@@ -302,7 +353,7 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
           )}
           {stage === "active" && !hud.tracking && (
             <p className="rounded-2xl bg-red-500/90 px-4 py-2 text-center text-sm font-semibold">
-              {missingText(hud.missing)} — step back so your whole body is in frame
+              {hud.person ? `${missingText(hud.person, hud.missing)}: step back so your whole body is in frame` : "Step into the frame"}
             </p>
           )}
           {stage === "active" && hud.tracking && !hud.inPosition && exercise.positionHint && (
@@ -325,33 +376,52 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
         </div>
       )}
 
-      {/* Setup sheet */}
+      {/* Setup sheet. The tips collapse once the body is detected so the
+          preview (especially the feet) isn't hidden behind them on a phone. */}
       {stage === "setup" && (
         <div className="safe-bottom absolute inset-x-0 bottom-0 z-10 px-3">
-          <div className="mx-auto max-w-md rounded-3xl border border-white/10 bg-zinc-950/90 p-5 backdrop-blur">
-            <h1 className="text-xl font-bold">Get set up</h1>
-            <ul className="mt-3 space-y-2 text-sm text-zinc-300">
-              {exercise.setup.instructions.map((line) => (
-                <li key={line} className="flex gap-2">
-                  <span className="text-accent">•</span>
-                  {line}
-                </li>
-              ))}
-            </ul>
+          <div className="mx-auto max-w-md rounded-3xl border border-white/10 bg-zinc-950/90 p-4 backdrop-blur sm:p-5">
+            <div className="flex items-center justify-between gap-2">
+              <h1 className="text-lg font-bold sm:text-xl">Get set up</h1>
+              <button
+                onClick={() => setTipsMode(showTips ? "closed" : "open")}
+                aria-expanded={showTips}
+                className="rounded-lg px-2 py-1 text-sm font-medium text-zinc-300 hover:bg-white/10"
+              >
+                {showTips ? "Hide tips" : "Show tips"}
+              </button>
+            </div>
+            {showTips && (
+              <ul className="mt-2 space-y-1.5 text-sm text-zinc-300">
+                {exercise.setup.instructions.map((line) => (
+                  <li key={line} className="flex gap-2">
+                    <span className="text-accent" aria-hidden>
+                      •
+                    </span>
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            )}
             <div
-              className={`mt-4 flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors ${
+              className={`mt-3 flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors ${
                 hud.bodyReady ? "bg-emerald-500 text-black" : "bg-white/10 text-zinc-200"
               }`}
               aria-live="polite"
+              data-testid="body-check"
             >
               <span
                 className={`h-3 w-3 shrink-0 rounded-full ${hud.bodyReady ? "bg-black" : "animate-pulse bg-amber-400"}`}
               />
-              {hud.bodyReady ? "Full body detected — you're good to go" : `${missingText(hud.missing)}…`}
+              {hud.bodyReady
+                ? "Full body detected. You're good to go"
+                : hud.tracking
+                  ? "Got you. Hold still…"
+                  : `${missingText(hud.person, hud.missing)}…`}
             </div>
             <button
               onClick={start}
-              className={`mt-4 w-full rounded-2xl px-5 py-4 text-lg font-bold transition ${
+              className={`mt-3 w-full rounded-2xl px-5 py-4 text-lg font-bold transition ${
                 hud.bodyReady ? "bg-accent text-black hover:bg-accent-strong" : "bg-white/10 text-zinc-300 hover:bg-white/15"
               }`}
             >
@@ -359,6 +429,18 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
             </button>
           </div>
         </div>
+      )}
+
+      {debug && debugInfo && (
+        <pre
+          data-testid="debug-metrics"
+          className="pointer-events-none absolute left-2 top-1/3 z-20 rounded-lg bg-black/70 p-2 font-mono text-[11px] leading-tight text-lime-300"
+        >
+          {`phase: ${debugInfo.phase}\ntracking: ${debugInfo.tracking}  inPosition: ${debugInfo.inPosition}\n` +
+            Object.entries(debugInfo.metrics ?? {})
+              .map(([k, v]) => `${k}: ${Number.isFinite(v) ? v.toFixed(1) : "–"}`)
+              .join("\n")}
+        </pre>
       )}
 
       {/* Set controls */}

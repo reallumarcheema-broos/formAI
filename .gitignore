@@ -43,3 +43,8 @@ next-env.d.ts
 
 # MediaPipe WASM copied from node_modules at dev/build time
 /public/mediapipe
+
+# Playwright
+/e2e/.cache
+/playwright-report
+/test-results

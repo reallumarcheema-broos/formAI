@@ -23,10 +23,17 @@ export interface MetricContext {
   side: Side;
   /** Rough camera angle, so exercises can skip metrics that only make sense from one view. */
   view: "front" | "side";
-  /** 3D world landmark (meters) for a joint. Defaults to the near side. Best for joint angles. */
-  world(joint: JointName, side?: Side): Landmark;
-  /** Aspect-corrected 2D image landmark for a joint. Best for lean / alignment checks. */
+  /**
+   * Aspect-corrected 2D image landmark for a joint (near side by default).
+   * Prefer this for angles: with a level camera, motion in the image plane is
+   * measured accurately.
+   */
   image(joint: JointName, side?: Side): Landmark;
+  /**
+   * MediaPipe 3D world landmark (meters). Its depth estimate is noisy — a
+   * straight standing knee can read ~140° — so avoid it for thresholds.
+   */
+  world(joint: JointName, side?: Side): Landmark;
 }
 
 /**

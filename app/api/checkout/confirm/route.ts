@@ -1,18 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getOrigin } from "@/lib/billing/origin";
-import { getStripe, isPaywallEnabled } from "@/lib/billing/stripe";
+import { postPurchasePath } from "@/lib/billing/redirects";
+import { getStripe, isStripeConfigured } from "@/lib/billing/stripe";
 import { invalidateSubscriptionCache } from "@/lib/billing/subscription";
-import { encodeProToken, PRO_COOKIE } from "@/lib/billing/token";
+import { encodeProToken, PRO_COOKIE, PRO_COOKIE_OPTIONS } from "@/lib/billing/token";
 
 /**
- * GET /api/checkout/confirm?session_id=… — Stripe redirects here after payment.
- * We verify the session with Stripe (never trust the query string alone), then
- * store a signed cookie linking this browser to the subscription.
+ * GET /api/checkout/confirm?session_id=…: Stripe redirects here after payment.
+ * We verify the session with Stripe (never trust the query string alone), store
+ * a signed cookie linking this browser to the subscription, then drop the user
+ * straight into their workout.
  */
 export async function GET(request: NextRequest) {
   const origin = getOrigin(request);
-  const sessionId = request.nextUrl.searchParams.get("session_id");
-  if (!isPaywallEnabled() || !sessionId) return NextResponse.redirect(`${origin}/pricing`, 303);
+  const params = request.nextUrl.searchParams;
+  const sessionId = params.get("session_id");
+  if (!isStripeConfigured() || !sessionId) return NextResponse.redirect(`${origin}/pricing`, 303);
 
   try {
     const session = await getStripe().checkout.sessions.retrieve(sessionId);
@@ -25,14 +28,8 @@ export async function GET(request: NextRequest) {
     }
 
     invalidateSubscriptionCache(subscriptionId);
-    const response = NextResponse.redirect(`${origin}/account?welcome=1`, 303);
-    response.cookies.set(PRO_COOKIE, encodeProToken({ customerId, subscriptionId, iat: Math.floor(Date.now() / 1000) }), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 400, // browsers cap cookies at 400 days
-    });
+    const response = NextResponse.redirect(`${origin}${postPurchasePath(params.get("exercise"))}`, 303);
+    response.cookies.set(PRO_COOKIE, encodeProToken({ customerId, subscriptionId }), PRO_COOKIE_OPTIONS);
     return response;
   } catch (err) {
     console.error("[FormAI] Checkout confirmation failed", err);

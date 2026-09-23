@@ -1,14 +1,15 @@
-import { angleFromVertical, jointAngle, midpoint } from "@/lib/pose/angles";
+import { angleFromVertical, jointAngle, midpoint, thighDepthAngle } from "@/lib/pose/angles";
 import type { ExerciseDefinition } from "./types";
 
 /**
  * Forward / reverse / split lunge, filmed from the side.
  *
- * Metrics
- *  - frontKnee:  hip–knee–ankle angle (3D) of the front leg. The front leg is
- *                the one whose knee is higher in the image (the back knee
- *                drops toward the floor).
- *  - backKnee:   same for the back leg. Informational.
+ * Metrics (all from 2D image landmarks)
+ *  - frontDepth: front thigh drop as an equivalent knee angle (see thighDepthAngle):
+ *                ~180° standing, 90° front thigh parallel to the floor. The front
+ *                leg is the one whose knee is higher (the back knee drops toward the floor).
+ *  - frontKnee:  real hip–knee–ankle angle of the front leg (side view only), used
+ *                to catch the knee shooting far past the toes.
  *  - torsoLean:  mid-hip → mid-shoulder angle from vertical.
  */
 export const lunge: ExerciseDefinition = {
@@ -28,13 +29,14 @@ export const lunge: ExerciseDefinition = {
   requiredJoints: ["shoulder", "hip", "knee", "ankle"],
 
   computeMetrics(ctx) {
-    const knee = (s: "left" | "right") => jointAngle(ctx.world("hip", s), ctx.world("knee", s), ctx.world("ankle", s));
     const leftIsFront = ctx.image("knee", "left").y < ctx.image("knee", "right").y;
     const front = leftIsFront ? "left" : "right";
-    const back = leftIsFront ? "right" : "left";
+    const hip = ctx.image("hip", front);
+    const knee = ctx.image("knee", front);
+    const ankle = ctx.image("ankle", front);
     return {
-      frontKnee: knee(front),
-      backKnee: knee(back),
+      frontDepth: thighDepthAngle(hip, knee, ankle),
+      frontKnee: ctx.view === "side" ? jointAngle(hip, knee, ankle) : NaN,
       torsoLean: angleFromVertical(
         midpoint(ctx.image("hip", "left"), ctx.image("hip", "right")),
         midpoint(ctx.image("shoulder", "left"), ctx.image("shoulder", "right")),
@@ -43,7 +45,7 @@ export const lunge: ExerciseDefinition = {
   },
 
   rep: {
-    metric: "frontKnee",
+    metric: "frontDepth",
     direction: "decreasing",
     topThreshold: 155,
     startThreshold: 140,
@@ -57,7 +59,7 @@ export const lunge: ExerciseDefinition = {
       message: "Go a bit lower",
       checkPartial: true,
       highlight: ["knee"],
-      isViolated: ({ min }) => min.frontKnee > 105,
+      isViolated: ({ min }) => min.frontDepth > 105,
     },
     {
       id: "lunge-knee-forward",

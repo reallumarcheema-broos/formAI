@@ -5,8 +5,8 @@ Prop up your phone or laptop, pick an exercise, and FormAI tracks your body thro
 - **Next.js 16** (App Router) + TypeScript + Tailwind CSS v4
 - **MediaPipe Pose Landmarker** (`@mediapipe/tasks-vision`), running on-device via WebAssembly/WebGL
 - **Web Speech API** for rep counts and form cues
-- **Stripe** subscription: *FormAI Pro*, **$14.99/month**
-- Mobile-first. Tested layouts for Safari on iPhone and Chrome on Android.
+- **Paid product:** every workout requires *FormAI Pro*, **$14.99/month (USD)**, billed through Stripe. After checkout, subscribers go straight into their workout.
+- Mobile-first, built for Safari on iPhone and Chrome on Android.
 
 ## Quick start
 
@@ -17,14 +17,17 @@ npm run dev
 
 Open http://localhost:3000. The camera needs a **secure context**: `localhost` works, but to test on a phone you need HTTPS. Two easy options are `next dev --experimental-https` or a tunnel such as `ngrok http 3000`.
 
-With no Stripe keys configured, the paywall is off and every exercise is unlocked. That makes local development painless.
+In `npm run dev` without Stripe keys the paywall is off, so you can work on pose tracking without Stripe. A banner on the home page reminds you. **In production the paywall is always on.** See [Subscription](#subscription-1499month-with-stripe).
 
 | Script | What it does |
 | --- | --- |
 | `npm run dev` | Dev server (copies the MediaPipe WASM into `public/` first) |
 | `npm run build` / `npm start` | Production build / server |
-| `npm test` | Unit tests for angle math and the rep/form engine (Vitest) |
+| `npm test` | Unit tests: angle math, rep/form engine, signed tokens (Vitest) |
+| `npm run test:e2e` | End-to-end tests in a real browser (Playwright). See [Testing](#testing). |
 | `npm run lint` / `npm run typecheck` | ESLint / TypeScript |
+
+Add `?debug=1` to a workout URL (e.g. `/workout/squat?debug=1`) to see live metrics and the rep phase on screen. That's the fastest way to tune thresholds on a real body.
 
 ## How it works
 
@@ -34,8 +37,8 @@ camera ──► PoseLandmarker ──► LandmarkSmoother ──► ExerciseEng
                   2D + 3D world)      weighted average)       machine → form rules)       skeleton highlight)
 ```
 
-1. **Home** (`/`): pick Squat, Push-up or Lunge.
-2. **Setup** (`/workout/[exercise]`): placement instructions plus a live check that turns green once the required joints have been visible for about half a second.
+1. **Home** (`/`): pick Squat, Push-up or Lunge. Visitors are sent to pricing first.
+2. **Setup** (`/workout/[exercise]`): placement tips plus a live check that turns green once the required joints have been visible for about half a second. The tips then collapse so the preview, especially your feet, isn't covered.
 3. **Workout**: camera feed with a skeleton overlay, a big rep counter, on-screen and spoken feedback, and Start / Pause / End controls. Joints involved in a form issue turn red.
 4. **Summary**: total reps, good-form vs. flagged reps, partial reps and the most common form issue.
 
@@ -44,10 +47,11 @@ camera ──► PoseLandmarker ──► LandmarkSmoother ──► ExerciseEng
 ```
 app/
   page.tsx                  Home + exercise picker
-  pricing/ account/         Subscription pages
+  pricing/ account/         Subscription pages (account also shows the device-link QR code)
   workout/[exercise]/       Workout route (server-side paywall check)
   api/checkout/             Stripe Checkout (+ /confirm callback)
   api/billing-portal/       Stripe customer portal
+  api/device-link/          Unlock Pro on a second device
 components/
   workout/                  WorkoutFlow (setup → set → summary), CameraStage, usePoseTracking, SummaryView
 lib/
@@ -55,7 +59,8 @@ lib/
   exercises/                engine.ts (generic), types.ts, squat.ts, pushup.ts, lunge.ts, index.ts (registry)
   voice/                    VoiceCoach (cooldowns, iOS unlock), number words
   billing/                  plans, Stripe client, signed cookie, subscription status
-tests/                      Vitest specs
+tests/                      Vitest unit tests
+e2e/                        Playwright end-to-end tests + mock Stripe server
 ```
 
 ## Adding a new exercise
@@ -65,7 +70,7 @@ Every exercise is a plain `ExerciseDefinition` object (see `lib/exercises/types.
 1. **Create `lib/exercises/<name>.ts`:**
 
    ```ts
-   import { jointAngle } from "@/lib/pose/angles";
+   import { angleFromVertical, jointAngle } from "@/lib/pose/angles";
    import type { ExerciseDefinition } from "./types";
 
    export const glutebridge: ExerciseDefinition = {
@@ -77,10 +82,12 @@ Every exercise is a plain `ExerciseDefinition` object (see `lib/exercises/types.
      setup: { view: "side", instructions: ["Phone on the floor, side-on, 2 m away."] },
      requiredJoints: ["shoulder", "hip", "knee"],
 
-     // Turn landmarks into named numbers. world() = 3D meters (best for joint angles),
-     // image() = aspect-corrected 2D (best for lean/alignment). Near side by default.
+     // Turn landmarks into named numbers. Use ctx.image(): aspect-corrected 2D
+     // landmarks, near side by default. (Avoid ctx.world(): MediaPipe's 3D depth
+     // is too noisy for thresholds.)
      computeMetrics: (ctx) => ({
-       hip: jointAngle(ctx.world("shoulder"), ctx.world("hip"), ctx.world("knee")),
+       hip: jointAngle(ctx.image("shoulder"), ctx.image("hip"), ctx.image("knee")),
+       torso: angleFromVertical(ctx.image("hip"), ctx.image("shoulder")),
      }),
 
      // Rep state machine with hysteresis: idle → below start → reach bottom → back past top = 1 rep.
@@ -101,6 +108,7 @@ Every exercise is a plain `ExerciseDefinition` object (see `lib/exercises/types.
 3. **Add a test** next to `tests/squat.test.ts` that feeds synthetic poses through `ExerciseEngine`.
 
 Tips:
+- Measure on real people with `?debug=1` before picking thresholds. In testing, MediaPipe's 3D world landmarks read a straight standing knee as about 140°, which is why all built-in exercises use 2D image geometry. Squat and lunge depth use `thighDepthAngle()`, which is correct from the front and from the side.
 - Use `NaN` for metrics you can't measure from the current view (`ctx.view` is `"front"` or `"side"`). Rules comparing against `NaN` never fire.
 - Use `inPosition` (see `pushup.ts`) to ignore frames where the person isn't set up. Push-ups only count while the body is horizontal.
 - Keep a gap of 25° or more between `bottomThreshold` and `topThreshold` so jitter can't double count.
@@ -108,35 +116,60 @@ Tips:
 
 ## Subscription ($14.99/month with Stripe)
 
-| Plan | Price | Includes |
-| --- | --- | --- |
-| Free | $0 | Squat, rep counting, voice cues, summaries |
-| **FormAI Pro** | **$14.99 / month** | Every exercise (Push-up, Lunge, and future ones) |
+FormAI is paid: **every workout requires FormAI Pro at $14.99/month (USD)**. Visitors can browse the home and pricing pages. Opening any workout sends them to pricing.
 
-How it works, with no database needed:
+The purchase flow needs no database:
 
-1. The **Get Pro** button POSTs to `/api/checkout`, which creates a Stripe Checkout session in subscription mode and redirects to Stripe.
-2. After payment, Stripe redirects to `/api/checkout/confirm?session_id=…`. The server **verifies the session with Stripe**, then sets an httpOnly, HMAC-signed `formai_pro` cookie holding the customer and subscription IDs.
-3. On each gated request, the server checks the signature and asks Stripe whether the subscription is `active`, `trialing` or `past_due`. Results are cached in memory for 5 minutes. Cancellations therefore take effect automatically, with no webhook needed.
-4. **Manage billing** on `/account` opens the Stripe customer portal (update card, invoices, cancel).
+1. A visitor taps an exercise (say Push-up) and lands on `/pricing?exercise=pushup`.
+2. **Subscribe for $14.99/month** POSTs to `/api/checkout`, which creates a Stripe Checkout session in subscription mode and redirects to Stripe.
+3. After payment, Stripe redirects to `/api/checkout/confirm`. The server **verifies the session with Stripe**, sets an httpOnly, HMAC-signed `formai_pro` cookie holding the customer and subscription IDs, and **drops the user straight into the Push-up workout**.
+4. On each gated request the server checks the signature and asks Stripe whether the subscription is `active`, `trialing` or `past_due`. Results are cached in memory for 5 minutes. Cancellations take effect automatically, with no webhook needed.
+5. **Manage billing** on `/account` opens the Stripe customer portal (update card, invoices, cancel).
+6. **Use on another device**: `/account` shows a QR code, a signed link valid for 10 minutes. Scanning it on a phone unlocks Pro there too. This covers the common "paid on my laptop, train with my phone" case.
+
+Safety rails (all covered by tests):
+- **Fails closed.** In production the paywall is on even if Stripe keys are missing: nobody gets in and checkout shows "payments aren't set up".
+- Existing subscribers can't start a second checkout.
+- Forged or tampered cookies, canceled or unknown subscriptions, unpaid checkout sessions, and expired or forged device links are all rejected.
+- The post-checkout redirect only accepts known exercise ids, so it can't be used as an open redirect.
 
 ### Set up Stripe
 
 1. Create a Stripe account and copy your **secret key** (use `sk_test_…` while testing).
 2. In the Stripe dashboard, enable the **Customer portal** (Settings → Billing → Customer portal) and allow cancellation.
-3. Copy `.env.example` to `.env.local` and set `STRIPE_SECRET_KEY`. Optionally set:
-   - `STRIPE_PRICE_ID`: a recurring $14.99/month Price you created. If omitted, the price is created inline at checkout.
-   - `FORMAI_COOKIE_SECRET`: a dedicated cookie-signing secret (`openssl rand -base64 32`).
-   - `NEXT_PUBLIC_SITE_URL`: your public URL, used for Stripe redirects.
+3. Copy `.env.example` to `.env.local` and set:
+   - `STRIPE_SECRET_KEY` (required)
+   - `FORMAI_COOKIE_SECRET`: `openssl rand -base64 32` (recommended)
+   - `NEXT_PUBLIC_SITE_URL`: your public URL (recommended, used for redirects and QR links)
+   - `STRIPE_PRICE_ID`: optional. If you create a $14.99/month Price in the dashboard, set it here. Otherwise the price is created inline.
 4. Test with card `4242 4242 4242 4242`, any future date and any CVC.
+5. When you're ready for real money, switch to your live key (`sk_live_…`).
 
-> **Limitation:** Pro is linked to the browser that completed checkout. To support multiple devices or restore purchases, add user accounts (e.g. Auth.js or Clerk) and store the Stripe customer ID against the user. Before charging real customers, also add Terms of Service and Privacy Policy pages.
+> **Limitations:** Pro lives in a browser cookie (plus any devices linked by QR). If someone clears their cookies on every device, they need support to recover access. Adding user accounts (e.g. Auth.js or Clerk) and storing the Stripe customer ID against the user would remove this limit. Before charging real customers, also add Terms of Service and Privacy Policy pages and a support contact.
+
+## Testing
+
+```bash
+npm test            # 34 unit tests: angles, depth math, rep state machine, form rules, signed tokens
+npm run test:e2e    # 69 end-to-end tests (desktop Chrome + iPhone and Android viewports)
+```
+
+The e2e suite builds the app, starts it with `next start`, and points Stripe at **`e2e/mock-stripe.mjs`**, a local fake of the Stripe API with fake hosted Checkout and Billing Portal pages. That lets it test the whole paid flow offline:
+
+- **Paywall:** visitors see $14.99/month, every workout is locked, and checkout sends `unit_amount=1499`, `usd`, `interval=month` in subscription mode.
+- **Purchase:** subscribe, land in the chosen workout, all exercises unlocked, account shows Pro. No double charge. Canceling in the portal removes access. A past-due subscription keeps access.
+- **Security:** forged, tampered or wrong-kind cookies, canceled or unknown subscriptions, unpaid sessions and made-up session ids are rejected. Security headers are set.
+- **Device link:** QR link unlocks a fresh device. Expired, forged or canceled links are rejected.
+- **Workout with the real pose model on real photos of people.** The camera is replaced with a canvas that shows a standing man and a man with his front knee bent like the bottom of a lunge (public MediaPipe test images, downloaded once into `e2e/.cache`). The tests check: the setup check turns green, the skeleton is drawn, standing still never counts, a real lunge counts and is spoken ("One", "Two"), pause/resume, mute is remembered, the out-of-frame warning, camera switching, a denied camera, and the summary.
+- **Every page:** no console errors, no sideways scrolling on phones, and no serious or critical accessibility (axe) violations.
+
+CI (`.github/workflows/ci.yml`) runs lint, typecheck, unit and e2e tests on every push.
 
 ## Deploy to Vercel
 
 1. Push this repo to GitHub.
 2. In Vercel, click **Add New → Project**, then import the repo. The framework is auto-detected as Next.js, so there's nothing to configure.
-3. Under **Settings → Environment Variables**, add `STRIPE_SECRET_KEY` and the optional variables above (`NEXT_PUBLIC_SITE_URL=https://<your-app>.vercel.app`).
+3. Under **Settings → Environment Variables**, add `STRIPE_SECRET_KEY`, `FORMAI_COOKIE_SECRET` and `NEXT_PUBLIC_SITE_URL=https://<your-app>.vercel.app`. Without the Stripe key the site still deploys, but every workout stays locked and checkout reports that payments aren't set up.
 4. Deploy. Vercel serves over HTTPS, so the camera works on phones right away.
 
 Or use the CLI: `npm i -g vercel && vercel --prod`.
@@ -145,7 +178,7 @@ The MediaPipe WASM runtime (~12 MB) is copied from `node_modules` into `public/m
 
 ## Privacy
 
-Camera frames are processed locally by MediaPipe in WebAssembly/WebGL. No frames, landmarks or workout data are sent to any server. The only network calls are downloading the model/runtime and, if you subscribe, Stripe checkout.
+Camera frames are processed locally by MediaPipe in WebAssembly/WebGL. No frames, landmarks or workout data are sent to any server. The only network calls are downloading the model/runtime and the subscription check against Stripe.
 
 ## Browser notes
 

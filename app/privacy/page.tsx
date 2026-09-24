@@ -24,7 +24,7 @@ export default function PrivacyPage() {
           learning. Video frames, images and body-position data are <strong>never recorded, stored or sent</strong> to
           us or anyone else.
         </li>
-        <li>Rep counts and workout summaries are shown on screen and aren&apos;t saved on our servers.</li>
+        <li>Rep counts, calorie estimates and workout summaries are never saved on our servers.</li>
         <li>You can deny or revoke camera permission at any time in your browser settings.</li>
       </ul>
 
@@ -42,8 +42,12 @@ export default function PrivacyPage() {
           forged. It lasts up to 400 days and is only used to unlock workouts on that device.
         </li>
         <li>
-          <strong>A voice preference.</strong> Whether you muted the voice coach is saved in your browser&apos;s local
-          storage (<code>formai:muted</code>). It never leaves your device.
+          <strong>Workout history and calorie settings.</strong> Your finished sets (exercise, reps, form results,
+          estimated calories, date), the body weight and daily calorie goal you enter, and whether you muted the voice
+          coach are saved in your browser&apos;s local storage (<code>formai:history</code>,{" "}
+          <code>formai:profile</code>, <code>formai:muted</code>). They power the Progress page, <strong>never leave
+          your device</strong>, and aren&apos;t visible to us. You can delete your history from the Progress page or by
+          clearing your browser data.
         </li>
         <li>
           <strong>Server logs.</strong> Like any website, our hosting provider automatically records technical request

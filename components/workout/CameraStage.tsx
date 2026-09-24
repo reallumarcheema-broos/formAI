@@ -28,7 +28,7 @@ export function CameraStage({ facing, onFrame, topBar, children }: Props) {
   const mirror = facing === "user" ? "-scale-x-100" : "";
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-black">
+    <div className="fixed inset-0 overflow-hidden bg-black text-white">
       <video
         ref={videoRef}
         className={`absolute inset-0 h-full w-full object-contain ${mirror}`}

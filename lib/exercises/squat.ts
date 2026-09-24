@@ -58,6 +58,9 @@ export const squat: ExerciseDefinition = {
     bottomThreshold: 115, // deep enough to count
   },
 
+  // Bodyweight squats: moderate calisthenics 3.8 MET → vigorous 8.0 MET at ~24 reps/min.
+  calories: { metLight: 3.8, metVigorous: 8.0, vigorousRepsPerMin: 24 },
+
   rules: [
     {
       id: "squat-depth",

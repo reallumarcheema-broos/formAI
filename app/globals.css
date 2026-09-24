@@ -1,27 +1,64 @@
 @import "tailwindcss";
 
+/*
+ * FormAI design tokens: warm cream + espresso with an amber accent.
+ * Contrast (WCAG AA) is checked: on light surfaces use ink / muted / amber-ink
+ * for text; on espresso use cream / muted-dark / amber / amber-bright.
+ */
 @theme inline {
-  --color-background: #09090b;
-  --color-foreground: #fafafa;
-  --color-accent: #a3e635;
-  --color-accent-strong: #84cc16;
+  --color-cream: #f4eee6;
+  --color-sand: #eae0d3;
+  --color-sand-deep: #dccdbb;
+  --color-card: #fbf8f4;
+  --color-espresso: #1c1613;
+  --color-espresso-2: #2a221d;
+  --color-ink: #211a16;
+  --color-muted: #5e5148;
+  --color-muted-dark: #b9aa9b;
+  --color-amber-ink: #8a4e14;
+  --color-amber: #c7822f;
+  --color-amber-bright: #e0a158;
+  --color-line: rgb(33 26 22 / 0.12);
+
+  /* Used by the workout screen (dark camera view). */
+  --color-background: var(--color-cream);
+  --color-foreground: var(--color-ink);
+  --color-accent: var(--color-amber-bright);
+  --color-accent-strong: var(--color-amber);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-oswald);
 }
 
 html {
-  color-scheme: dark;
-  background: var(--color-background);
+  color-scheme: light;
+  background: var(--color-cream);
 }
 
 body {
-  background: var(--color-background);
-  color: var(--color-foreground);
+  background: var(--color-cream);
+  color: var(--color-ink);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Respect iPhone notches / home indicator in the full-screen workout view. */
+/* Condensed, uppercase display type for headlines. */
+.font-display {
+  font-family: var(--font-oswald), "Arial Narrow", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: -0.005em;
+}
+
+/* Small uppercase label above headings. */
+.eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* Respect iPhone notches / home indicator. */
 .safe-top {
   padding-top: max(0.75rem, env(safe-area-inset-top));
 }
@@ -36,4 +73,19 @@ body {
 }
 .animate-pop {
   animation: pop 320ms ease-out;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop,
+  .animate-float {
+    animation: none;
+  }
 }

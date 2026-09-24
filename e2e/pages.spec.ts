@@ -31,12 +31,13 @@ test.beforeEach(async () => {
 });
 
 for (const [path, heading] of [
-  ["/", /Your AI form coach/],
+  ["/", /Train smarter/],
   ["/pricing", /One plan\. Every exercise\./],
   ["/account", /Account/],
   ["/terms", /Terms of Service/],
   ["/privacy", /Privacy Policy/],
   ["/refunds", /Refund Policy/],
+  ["/progress", /Your progress/],
 ] as const) {
   test(`@ui ${path} renders cleanly for a visitor`, async ({ page }) => {
     const errors = trackErrors(page);
@@ -74,13 +75,25 @@ test("@ui unknown exercise is a 404", async ({ page, context, baseURL }) => {
   expect(res?.status()).toBe(404);
 });
 
+/** The header nav is a menu on phones and inline on wider screens. */
+async function headerNav(page: Page) {
+  const menu = page.getByRole("button", { name: "Menu" }).or(page.locator("summary[aria-label=Menu]"));
+  if (await menu.isVisible()) {
+    await menu.click();
+    return page.getByRole("navigation", { name: "Mobile" });
+  }
+  return page.getByRole("navigation", { name: "Main" });
+}
+
 test("@ui header navigation works", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Pricing" }).click();
+  await (await headerNav(page)).getByRole("link", { name: "Pricing" }).click();
   await expect(page).toHaveURL("/pricing");
-  await page.getByRole("link", { name: "Account" }).click();
+  await (await headerNav(page)).getByRole("link", { name: "Progress" }).click();
+  await expect(page).toHaveURL("/progress");
+  await (await headerNav(page)).getByRole("link", { name: "Account" }).click();
   await expect(page).toHaveURL("/account");
-  await page.getByRole("link", { name: /FormAI/ }).first().click();
+  await page.getByRole("link", { name: "FormAI home" }).click();
   await expect(page).toHaveURL("/");
 });
 

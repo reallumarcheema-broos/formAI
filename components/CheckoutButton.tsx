@@ -7,7 +7,7 @@ export function CheckoutButton({ exerciseId, label }: { exerciseId?: string; lab
       {exerciseId && <input type="hidden" name="exercise" value={exerciseId} />}
       <button
         type="submit"
-        className="w-full rounded-xl bg-accent px-5 py-4 text-lg font-bold text-black transition hover:bg-accent-strong active:scale-[0.99]"
+        className="w-full rounded-full bg-cream px-5 py-4 text-lg font-semibold text-ink transition hover:bg-white active:scale-[0.99]"
       >
         {label ?? `Subscribe for ${PRO_PLAN.priceLabel}/month`}
       </button>

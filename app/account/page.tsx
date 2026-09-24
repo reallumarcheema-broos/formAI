@@ -48,48 +48,48 @@ export default async function AccountPage({
     <>
       <SiteHeader isPro={isPro} />
       <main className="mx-auto w-full max-w-xl flex-1 px-4 pt-10 pb-12">
-        <h1 className="text-3xl font-bold tracking-tight">Account</h1>
+        <h1 className="font-display text-5xl font-bold">Account</h1>
 
         {params.error === "portal" && (
-          <p role="alert" className="mt-6 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+          <p role="alert" className="mt-6 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">
             We couldn&apos;t open the billing portal. Please try again.
           </p>
         )}
 
-        <div className="mt-6 rounded-2xl border border-white/10 bg-zinc-900/60 p-5">
-          <p className="text-sm text-zinc-400">Current plan</p>
+        <div className="mt-6 rounded-2xl border border-line bg-card p-5">
+          <p className="text-sm text-muted">Current plan</p>
           <p className="mt-1 text-2xl font-semibold" data-testid="plan-name">
             {planName}
           </p>
           {status.subscriptionStatus && (
-            <p className="mt-1 text-sm text-zinc-400">
-              Status: <span className="text-zinc-200">{status.subscriptionStatus.replace("_", " ")}</span>
+            <p className="mt-1 text-sm text-muted">
+              Status: <span className="text-ink">{status.subscriptionStatus.replace("_", " ")}</span>
               {status.cancelAt && isPro && (
                 <> · access ends {new Date(status.cancelAt * 1000).toLocaleDateString("en-US", { dateStyle: "medium" })}</>
               )}
             </p>
           )}
-          {isPro && <p className="mt-1 text-sm text-zinc-400">{PRO_PLAN.priceLabel} / month</p>}
+          {isPro && <p className="mt-1 text-sm text-muted">{PRO_PLAN.priceLabel} / month</p>}
 
           <div className="mt-5 flex flex-col gap-2">
             {isPro || !status.paywallEnabled ? (
               <Link
                 href="/"
-                className="rounded-xl bg-accent px-4 py-3 text-center font-semibold text-black hover:bg-accent-strong"
+                className="rounded-full bg-espresso px-4 py-3 text-center font-semibold text-cream hover:bg-espresso-2"
               >
                 Start a workout
               </Link>
             ) : (
               <Link
                 href="/pricing"
-                className="rounded-xl bg-accent px-4 py-3 text-center font-semibold text-black hover:bg-accent-strong"
+                className="rounded-full bg-espresso px-4 py-3 text-center font-semibold text-cream hover:bg-espresso-2"
               >
                 Subscribe: {PRO_PLAN.priceLabel}/month
               </Link>
             )}
             {status.token && (
               <form action="/api/billing-portal" method="POST">
-                <button type="submit" className="w-full rounded-xl bg-white/10 px-4 py-3 font-semibold hover:bg-white/15">
+                <button type="submit" className="w-full rounded-full bg-sand px-4 py-3 font-semibold hover:bg-sand-deep">
                   Manage billing
                 </button>
               </form>
@@ -98,11 +98,11 @@ export default async function AccountPage({
         </div>
 
         {isPro && (
-          <section className="mt-6 rounded-2xl border border-white/10 bg-zinc-900/60 p-5" aria-labelledby="devices-title">
+          <section className="mt-6 rounded-2xl border border-line bg-card p-5" aria-labelledby="devices-title">
             <h2 id="devices-title" className="text-lg font-semibold">
               Use on another device
             </h2>
-            <p className="mt-1 text-sm text-zinc-400">
+            <p className="mt-1 text-sm text-muted">
               Subscribed on your laptop but want to train with your phone? Scan this code with the other device.
             </p>
             {deviceLink ? (
@@ -113,7 +113,7 @@ export default async function AccountPage({
                   aria-label="QR code to link another device"
                   dangerouslySetInnerHTML={{ __html: deviceLink.qrSvg }}
                 />
-                <p className="text-xs text-zinc-400">
+                <p className="text-xs text-muted">
                   Valid for {LINK_TTL_SECONDS / 60} minutes. Only share it with your own devices.
                 </p>
                 <input
@@ -121,13 +121,13 @@ export default async function AccountPage({
                   value={deviceLink.url}
                   aria-label="Device link"
                   data-testid="device-link"
-                  className="w-full truncate rounded-lg border border-white/10 bg-black/40 px-3 py-2 font-mono text-xs text-zinc-300"
+                  className="w-full truncate rounded-lg border border-line bg-sand px-3 py-2 font-mono text-xs text-muted"
                 />
               </div>
             ) : (
               <Link
                 href="/account?link=1"
-                className="mt-4 block rounded-xl border border-white/15 px-4 py-3 text-center font-semibold hover:bg-white/5"
+                className="mt-4 block rounded-full border border-line px-4 py-3 text-center font-semibold hover:bg-sand"
               >
                 Show QR code
               </Link>
@@ -136,7 +136,7 @@ export default async function AccountPage({
         )}
 
         {status.paywallEnabled && (
-          <p className="mt-4 text-xs text-zinc-400">
+          <p className="mt-4 text-xs text-muted">
             Your subscription is saved in this browser. Use “Manage billing” to update your card, download invoices or
             cancel. Need help? Email <ContactLink /> from the address you used at checkout.
           </p>

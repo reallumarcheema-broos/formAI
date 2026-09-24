@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { resetStripe, subscribe } from "./helpers/auth";
 import { installFakeCamera, setScene, spoken } from "./helpers/camera";
@@ -55,6 +56,14 @@ test("setup check turns green when a real person is fully in frame", async ({ pa
     return n;
   });
   expect(drawn).toBeGreaterThan(500);
+
+  // Text on the dark camera screen stays light (regression: it once inherited the site's dark ink,
+  // which axe can't catch because the background is live video).
+  for (const el of [page.getByRole("heading", { name: "Get set up" }), page.getByText("Squat", { exact: false }).first()]) {
+    expect(await el.evaluate((e) => getComputedStyle(e).color)).toBe("rgb(255, 255, 255)");
+  }
+  const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).exclude("video").exclude("canvas").analyze();
+  expect(axe.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
 });
 
 test("countdown is spoken, and standing still never counts a rep", async ({ page }) => {
@@ -63,6 +72,9 @@ test("countdown is spoken, and standing still never counts a rep", async ({ page
   await startSet(page);
   await page.waitForTimeout(4000);
   await expect(page.getByTestId("rep-count")).toHaveText("0");
+  expect(await page.getByTestId("rep-count").evaluate((e) => getComputedStyle(e).color)).toBe("rgb(255, 255, 255)");
+  const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).exclude("video").exclude("canvas").analyze();
+  expect(axe.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
   const said = await spoken(page);
   expect(said).toEqual(expect.arrayContaining(["3", "2", "1", "Go!"]));
 });
@@ -86,18 +98,51 @@ test("a real lunge (standing → front knee bent → standing) counts one rep, s
   await expect(page.getByTestId("rep-count")).toHaveText("2", { timeout: 5000 });
   expect(await spoken(page)).toContain("Two");
 
+  // Calories tick up live while exercising.
+  expect(Number(await page.getByTestId("kcal-count").textContent())).toBeGreaterThanOrEqual(0);
+
   // Summary reflects the set.
   await page.getByRole("button", { name: "End" }).click();
   await expect(page.getByRole("heading", { name: "Lunge" })).toBeVisible();
-  await expect(page.getByText("Total reps").locator("..")).toContainText("2");
+  await expect(page.getByTestId("summary-reps")).toHaveText("2");
+  expect(Number(await page.getByTestId("summary-kcal").textContent())).toBeGreaterThan(0);
   await expect(page.getByText("Most common form issue")).toBeVisible();
-  const good = Number(await page.getByText("Good form").locator("..").locator("p").nth(1).textContent());
-  const flagged = Number(await page.getByText("Flagged").locator("..").locator("p").nth(1).textContent());
+  const good = Number((await page.getByText(/\d+ good$/).textContent())!.match(/\d+/)![0]);
+  const flagged = Number((await page.getByText(/\d+ flagged$/).textContent())!.match(/\d+/)![0]);
   expect(good + flagged).toBe(2);
+  await expect(page.getByText(/Saved to your progress on this device/)).toBeVisible();
+
 
   // "Do another set" returns to setup with a fresh counter.
   await page.getByRole("button", { name: "Do another set" }).click();
   await expect(page.getByRole("heading", { name: "Get set up" })).toBeVisible({ timeout: 30_000 });
+
+  // The set shows up on the Progress page (stored only in this browser).
+  await page.goto("/progress");
+  await expect(page.getByTestId("today-kcal")).toBeVisible();
+  const setKcal = await page.getByTestId("recent-sets").locator("li").first().getByText(/kcal$/).textContent();
+  expect(Number.parseFloat(setKcal!)).toBeGreaterThan(0);
+  await expect(page.getByTestId("recent-sets")).toContainText("Lunge");
+  await expect(page.getByTestId("recent-sets")).toContainText("2 reps");
+});
+
+test("body weight is saved and used for calories", async ({ page }) => {
+  await openWorkout(page, "squat");
+  await expect(page.getByTestId("weight-value")).toHaveText("not set");
+  await page.getByRole("button", { name: "Set weight" }).click();
+  await page.getByLabel("Your weight").fill("180");
+  await page.getByRole("button", { name: "lb" }).click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByTestId("weight-value")).toHaveText("180 lb");
+
+  // Invalid input is rejected.
+  await page.getByRole("button", { name: "Edit" }).click();
+  await page.getByLabel("Your weight").fill("5");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText(/Enter a weight between/)).toBeVisible();
+
+  await page.goto("/progress");
+  await expect(page.getByTestId("settings-weight")).toHaveText("180 lb");
 });
 
 test("pausing stops rep counting until resumed", async ({ page }) => {

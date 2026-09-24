@@ -10,7 +10,7 @@ export interface SkeletonStyle {
   highlight?: ReadonlySet<number>;
 }
 
-const DEFAULT_STYLE: SkeletonStyle = { color: "#34d399", warnColor: "#f87171" };
+const DEFAULT_STYLE: SkeletonStyle = { color: "#f0c486", warnColor: "#f87171" };
 
 /**
  * Draw the pose skeleton onto a canvas that is the same pixel size as the

@@ -52,6 +52,9 @@ export const lunge: ExerciseDefinition = {
     bottomThreshold: 115,
   },
 
+  // Lunges: moderate calisthenics 3.8 MET → ~7 MET at a brisk ~16 reps/min.
+  calories: { metLight: 3.8, metVigorous: 7.0, vigorousRepsPerMin: 16 },
+
   rules: [
     {
       id: "lunge-depth",

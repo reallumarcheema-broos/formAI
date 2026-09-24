@@ -50,6 +50,9 @@ export const pushup: ExerciseDefinition = {
     bottomThreshold: 100,
   },
 
+  // Push-ups: moderate calisthenics 3.8 MET → vigorous 8.0 MET at ~20 reps/min.
+  calories: { metLight: 3.8, metVigorous: 8.0, vigorousRepsPerMin: 20 },
+
   rules: [
     {
       id: "pushup-depth",

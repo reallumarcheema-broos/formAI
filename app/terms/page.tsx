@@ -20,8 +20,8 @@ export default function TermsPage() {
 
       <h2>1. What FormAI does</h2>
       <p>
-        FormAI uses your device&apos;s camera and on-device machine learning to track your body, count repetitions
-        and give spoken and on-screen form cues. Video is processed in your browser and is never uploaded to us. See
+        FormAI uses your device&apos;s camera and on-device machine learning to track your body, count repetitions,
+        estimate calories burned and give spoken and on-screen form cues. Video is processed in your browser and is never uploaded to us. See
         our <Link href="/privacy">Privacy Policy</Link>.
       </p>
 
@@ -35,6 +35,10 @@ export default function TermsPage() {
         <li>
           Form cues are generated automatically and <strong>can be wrong or missed</strong>. Camera angle, lighting,
           clothing and body type all affect accuracy. Use your own judgement.
+        </li>
+        <li>
+          <strong>Calorie numbers are estimates</strong>, based on your body weight, the exercise and your pace. Actual
+          energy use varies from person to person. Don&apos;t rely on them for medical or dietary decisions.
         </li>
         <li>Stop immediately if you feel pain, dizziness or shortness of breath.</li>
         <li>

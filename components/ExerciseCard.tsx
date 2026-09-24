@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ExerciseDefinition } from "@/lib/exercises";
+import { ArrowIcon } from "./icons";
 
 interface Props {
   exercise: Pick<ExerciseDefinition, "id" | "name" | "tagline" | "icon">;
@@ -12,22 +13,24 @@ export function ExerciseCard({ exercise, locked }: Props) {
     <Link
       href={href}
       data-testid={`exercise-${exercise.id}`}
-      className="group relative flex items-center gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4 transition hover:border-accent/50 hover:bg-zinc-900 active:scale-[0.99]"
+      className="group flex items-center gap-4 rounded-3xl border border-line bg-card p-4 transition hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-24px_rgba(28,22,19,0.5)] active:scale-[0.99] sm:p-5"
     >
-      <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-white/5 text-3xl" aria-hidden>
+      <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-sand text-3xl" aria-hidden>
         {exercise.icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-lg font-semibold">{exercise.name}</span>
-        <span className="block text-sm text-zinc-400">{exercise.tagline}</span>
+        <span className="font-display block text-2xl font-semibold leading-tight">{exercise.name}</span>
+        <span className="block text-sm text-muted">{exercise.tagline}</span>
       </span>
-      <span className="shrink-0 text-sm font-medium text-zinc-300 group-hover:text-accent">
+      <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-ink">
         {locked ? (
           <>
-            <span aria-hidden>🔒 </span>Unlock
+            <span aria-hidden>🔒</span> Unlock
           </>
         ) : (
-          "Start →"
+          <>
+            Start <ArrowIcon className="h-4 w-4 transition group-hover:translate-x-0.5" />
+          </>
         )}
       </span>
     </Link>

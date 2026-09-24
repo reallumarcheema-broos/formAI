@@ -1,6 +1,6 @@
-# FormAI: real-time AI workout form coach
+# FormAI: AI form coach & camera calorie tracker
 
-Prop up your phone or laptop, pick an exercise, and FormAI tracks your body through the camera. It counts reps, spots bad form, and speaks cues to you during the set. **Everything runs in the browser, and no video is ever uploaded.**
+Prop up your phone or laptop, pick an exercise, and FormAI tracks your body through the camera. It counts reps, **estimates the calories you burn**, and **tells you out loud when your form is wrong**, during the set. Every workout feeds a **Progress** dashboard with daily calorie goals, streaks and a form score. **Everything runs in the browser, and no video is ever uploaded.**
 
 - **Next.js 16** (App Router) + TypeScript + Tailwind CSS v4
 - **MediaPipe Pose Landmarker** (`@mediapipe/tasks-vision`), running on-device via WebAssembly/WebGL
@@ -39,24 +39,35 @@ camera ──► PoseLandmarker ──► LandmarkSmoother ──► ExerciseEng
 
 1. **Home** (`/`): pick Squat, Push-up or Lunge. Visitors are sent to pricing first.
 2. **Setup** (`/workout/[exercise]`): placement tips plus a live check that turns green once the required joints have been visible for about half a second. The tips then collapse so the preview, especially your feet, isn't covered.
-3. **Workout**: camera feed with a skeleton overlay, a big rep counter, on-screen and spoken feedback, and Start / Pause / End controls. Joints involved in a form issue turn red.
-4. **Summary**: total reps, good-form vs. flagged reps, partial reps and the most common form issue.
+3. **Workout**: camera feed with a skeleton overlay, a big rep counter, a **live calorie counter**, on-screen and spoken form feedback, and Start / Pause / End controls. Joints involved in a form issue turn red.
+4. **Summary**: total reps, **calories burned**, form score (good vs. flagged reps), partial reps and the most common form issue. The set is saved to the Progress page.
+5. **Progress** (`/progress`): calories burned today vs. your daily goal, a 7-day chart, streak, form score, recent sets, and weight/goal settings.
+
+### Calorie tracking
+
+Calories are estimated with the standard ACSM formula, `kcal/min = MET × 3.5 × weight(kg) / 200`, using MET values from the Compendium of Physical Activities. Each exercise sets a light and a vigorous MET (`calories` in its definition). FormAI slides between the two based on your rep pace over the last 30 seconds, so a brisk set counts for more than a slow one. Calories only accumulate while you're tracked and in position, never while paused or out of frame. Users enter their weight on the setup screen (70 kg is used until they do). The code is in `lib/fitness/calories.ts`, with unit tests in `tests/calories.test.ts`.
+
+Workout history, weight and daily goal are stored in the browser's `localStorage` only (`lib/fitness/history.ts`, `lib/fitness/profile.ts`), consistent with the "nothing leaves your device" promise. The Privacy Policy describes this.
 
 ### Folder structure
 
 ```
 app/
   page.tsx                  Home + exercise picker
+  progress/                 Calorie tracker dashboard
   pricing/ account/         Subscription pages (account also shows the device-link QR code)
   workout/[exercise]/       Workout route (server-side paywall check)
   api/checkout/             Stripe Checkout (+ /confirm callback)
   api/billing-portal/       Stripe customer portal
   api/device-link/          Unlock Pro on a second device
 components/
-  workout/                  WorkoutFlow (setup → set → summary), CameraStage, usePoseTracking, SummaryView
+  home/                     Landing-page hero illustration
+  progress/                 ProgressDashboard, CaloriesChart
+  workout/                  WorkoutFlow (setup → set → summary), CameraStage, usePoseTracking, SummaryView, WeightSetting
 lib/
   pose/                     landmarks, angle math, smoothing, visibility checks, detector, camera, drawing
   exercises/                engine.ts (generic), types.ts, squat.ts, pushup.ts, lunge.ts, index.ts (registry)
+  fitness/                  calorie estimates, workout history, weight/goal profile
   voice/                    VoiceCoach (cooldowns, iOS unlock), number words
   billing/                  plans, Stripe client, signed cookie, subscription status
 tests/                      Vitest unit tests
@@ -93,6 +104,9 @@ Every exercise is a plain `ExerciseDefinition` object (see `lib/exercises/types.
      // Rep state machine with hysteresis: idle → below start → reach bottom → back past top = 1 rep.
      // Here the metric *increases* into the rep, so direction is "increasing".
      rep: { metric: "hip", direction: "increasing", topThreshold: 120, startThreshold: 135, bottomThreshold: 165 },
+
+     // Calorie estimate: MET range (Compendium of Physical Activities) and the pace that counts as vigorous.
+     calories: { metLight: 3.0, metVigorous: 5.0, vigorousRepsPerMin: 20 },
 
      rules: [
        // Checked once per rep, on min/max over the rep.
@@ -164,8 +178,8 @@ The refund policy offers a **full refund within 7 days of the first payment**. E
 ## Testing
 
 ```bash
-npm test            # 34 unit tests: angles, depth math, rep state machine, form rules, signed tokens
-npm run test:e2e    # 69 end-to-end tests (desktop Chrome + iPhone and Android viewports)
+npm test            # 48 unit tests: angles, depth math, rep state machine, form rules, calories, history, signed tokens
+npm run test:e2e    # 107 end-to-end tests (desktop Chrome + iPhone and Android viewports)
 ```
 
 The e2e suite builds the app, starts it with `next start`, and points Stripe at **`e2e/mock-stripe.mjs`**, a local fake of the Stripe API with fake hosted Checkout and Billing Portal pages. That lets it test the whole paid flow offline:
@@ -175,7 +189,8 @@ The e2e suite builds the app, starts it with `next start`, and points Stripe at 
 - **Security:** forged, tampered or wrong-kind cookies, canceled or unknown subscriptions, unpaid sessions and made-up session ids are rejected. Security headers are set.
 - **Device link:** QR link unlocks a fresh device. Expired, forged or canceled links are rejected.
 - **Workout with the real pose model on real photos of people.** The camera is replaced with a canvas that shows a standing man and a man with his front knee bent like the bottom of a lunge (public MediaPipe test images, downloaded once into `e2e/.cache`). The tests check: the setup check turns green, the skeleton is drawn, standing still never counts, a real lunge counts and is spoken ("One", "Two"), pause/resume, mute is remembered, the out-of-frame warning, camera switching, a denied camera, and the summary.
-- **Every page:** no console errors, no sideways scrolling on phones, and no serious or critical accessibility (axe) violations.
+- **Calories & progress:** live calorie counter, calories on the summary, sets saved and shown on the Progress page, weight and goal settings with validation, 7-day chart tooltip, streak and form score, clearing history.
+- **Every page:** no console errors, no sideways scrolling on phones, and no serious or critical accessibility (axe) violations, including the Progress chart and the workout screen.
 
 CI (`.github/workflows/ci.yml`) runs lint, typecheck, unit and e2e tests on every push.
 
@@ -192,7 +207,7 @@ The MediaPipe WASM runtime (~12 MB) is copied from `node_modules` into `public/m
 
 ## Privacy
 
-Camera frames are processed locally by MediaPipe in WebAssembly/WebGL. No frames, landmarks or workout data are sent to any server. The only network calls are downloading the model/runtime and the subscription check against Stripe.
+Camera frames are processed locally by MediaPipe in WebAssembly/WebGL. No frames, landmarks or workout data are sent to any server. Workout history, weight and calorie goal stay in the browser's local storage. The only network calls are downloading the model/runtime and the subscription check against Stripe.
 
 ## Browser notes
 

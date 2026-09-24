@@ -1,4 +1,5 @@
 import type { JointName, Landmark, Side } from "@/lib/pose/landmarks";
+import type { CalorieProfile } from "@/lib/fitness/calories";
 import type { PoseFrame } from "@/lib/pose/poseFrame";
 
 /**
@@ -125,4 +126,6 @@ export interface ExerciseDefinition {
   positionHint?: string;
   rep: RepConfig;
   rules: FormRule[];
+  /** MET range for calorie estimates (see lib/fitness/calories.ts). */
+  calories: CalorieProfile;
 }

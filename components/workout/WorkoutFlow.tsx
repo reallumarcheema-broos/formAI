@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getExercise } from "@/lib/exercises";
 import { ExerciseEngine, type EngineEvent } from "@/lib/exercises/engine";
+import { CalorieTracker } from "@/lib/fitness/calories";
+import { saveWorkout } from "@/lib/fitness/history";
+import { effectiveWeightKg, loadProfile, saveProfile, type Profile } from "@/lib/fitness/profile";
 import type { Facing } from "@/lib/pose/camera";
 import type { JointName } from "@/lib/pose/landmarks";
 import { checkBodyVisible, type PoseFrame } from "@/lib/pose/poseFrame";
@@ -11,11 +14,14 @@ import { VoiceCoach } from "@/lib/voice/voiceCoach";
 import { CameraStage } from "./CameraStage";
 import { SummaryView, type WorkoutSummary } from "./SummaryView";
 import { useWakeLock } from "./useWakeLock";
+import { WeightSetting } from "./WeightSetting";
 
 type Stage = "setup" | "countdown" | "active" | "paused" | "summary";
 
 interface Hud {
   reps: number;
+  /** Estimated calories burned this set, rounded. */
+  kcal: number;
   /** Any person detected at all. */
   person: boolean;
   /** Required joints visible right now. */
@@ -82,9 +88,11 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
     }
   });
   const [countdown, setCountdown] = useState(3);
-  const [hud, setHud] = useState<Hud>({ reps: 0, person: false, tracking: false, bodyReady: false, inPosition: true, missing: [] });
+  const [hud, setHud] = useState<Hud>({ reps: 0, kcal: 0, person: false, tracking: false, bodyReady: false, inPosition: true, missing: [] });
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
+  const [profile, setProfile] = useState<Profile>(loadProfile);
+  const caloriesRef = useRef<CalorieTracker | null>(null);
   const debug = useDebugFlag();
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const lastDebugAtRef = useRef(0);
@@ -160,6 +168,7 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
     const next = { ...prev, ...patch };
     const changed =
       next.reps !== prev.reps ||
+      next.kcal !== prev.kcal ||
       next.person !== prev.person ||
       next.tracking !== prev.tracking ||
       next.bodyReady !== prev.bodyReady ||
@@ -183,6 +192,7 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
       const voice = voiceRef.current;
       const rep = events.find((e) => e.type === "rep");
       if (rep) {
+        caloriesRef.current?.rep(performance.now());
         voice?.sayRep(rep.count);
         if (!rep.issues.length) showFeedback("Good rep!", "good");
       }
@@ -203,6 +213,9 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
       if (current === "active" && engine) {
         const { snapshot, events } = engine.process(frame);
         handleEvents(events);
+        // Calories only accumulate while the person is tracked and in position.
+        const calories = caloriesRef.current;
+        calories?.tick(performance.now(), snapshot.tracking && snapshot.inPosition);
         const body = checkBodyVisible(frame?.normalized ?? null, exercise.requiredJoints);
         if (debug && performance.now() - lastDebugAtRef.current > 150) {
           lastDebugAtRef.current = performance.now();
@@ -216,6 +229,7 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
         updateHud({
           person: frame !== null,
           reps: snapshot.repCount,
+          kcal: Math.round(calories?.calories ?? 0),
           tracking: snapshot.tracking,
           inPosition: snapshot.inPosition,
           missing: body.missing,
@@ -248,11 +262,13 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
   // ---- controls ---------------------------------------------------------------
   const start = () => {
     voiceRef.current?.unlock(); // iOS: speech must be primed inside a tap
+    caloriesRef.current = new CalorieTracker(exercise.calories, effectiveWeightKg(profile));
     setCountdown(3);
     setStage("countdown");
   };
   const pause = () => {
     engineRef.current?.resetMotion();
+    caloriesRef.current?.pause();
     voiceRef.current?.cancel();
     setStage("paused");
   };
@@ -266,19 +282,45 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
     if (!engine) return;
     voiceRef.current?.cancel();
     const elapsed = activeSinceRef.current !== null ? performance.now() - activeSinceRef.current : 0;
-    setSummary({ ...engine.getStats(), exerciseName: exercise.name, durationMs: activeMsRef.current + elapsed });
+    const stats = engine.getStats();
+    const kcal = caloriesRef.current?.calories ?? 0;
+    const durationMs = activeMsRef.current + elapsed;
+    // Keep the set in this browser's history (never uploaded) for the Progress page.
+    const saved = stats.totalReps > 0 || kcal >= 1;
+    if (saved) {
+      saveWorkout({
+        endedAt: Date.now(),
+        exerciseId: exercise.id,
+        exerciseName: exercise.name,
+        reps: stats.totalReps,
+        goodReps: stats.goodReps,
+        flaggedReps: stats.flaggedReps,
+        kcal,
+        durationMs,
+        topIssue: stats.issues[0]?.message ?? null,
+      });
+    }
+    setSummary({
+      ...stats,
+      exerciseName: exercise.name,
+      durationMs,
+      kcal,
+      weightIsDefault: profile.weightKg === null,
+      saved,
+    });
     setStage("summary");
-    const reps = engine.getStats().totalReps;
+    const reps = stats.totalReps;
     voiceRef.current?.say(reps ? `Nice work. ${reps} rep${reps === 1 ? "" : "s"}.` : "Set ended.");
   };
   const restart = () => {
     engineRef.current = new ExerciseEngine(exercise);
+    caloriesRef.current = null;
     activeMsRef.current = 0;
     activeSinceRef.current = null;
     stableFramesRef.current = 0;
     lostFramesRef.current = 0;
     setTipsMode("auto");
-    hudRef.current = { reps: 0, person: false, tracking: false, bodyReady: false, inPosition: true, missing: [] };
+    hudRef.current = { reps: 0, kcal: 0, person: false, tracking: false, bodyReady: false, inPosition: true, missing: [] };
     setHud(hudRef.current);
     setFeedback(null);
     setSummary(null);
@@ -329,16 +371,27 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
       {/* Rep counter + feedback */}
       {inSet && (
         <div className="pointer-events-none absolute inset-x-0 top-20 z-10 flex flex-col items-center gap-3 px-4">
-          <div className="rounded-3xl bg-black/55 px-8 py-2 text-center backdrop-blur">
-            <p
-              key={hud.reps}
-              data-testid="rep-count"
-              className="animate-pop text-8xl font-black leading-none tabular-nums"
-              aria-live="polite"
-            >
-              {hud.reps}
-            </p>
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">reps</p>
+          <div className="flex items-stretch gap-2">
+            <div className="rounded-3xl bg-black/55 px-7 py-2 text-center backdrop-blur">
+              <p
+                key={hud.reps}
+                data-testid="rep-count"
+                className="font-display animate-pop text-8xl leading-none font-bold tabular-nums"
+                aria-live="polite"
+              >
+                {hud.reps}
+              </p>
+              <p className="text-xs font-semibold tracking-widest text-zinc-300 uppercase">reps</p>
+            </div>
+            <div className="flex flex-col justify-center rounded-3xl bg-black/55 px-5 py-2 text-center backdrop-blur">
+              <p className="text-lg leading-none" aria-hidden>
+                🔥
+              </p>
+              <p data-testid="kcal-count" className="font-display text-5xl leading-none font-bold text-accent tabular-nums">
+                {hud.kcal}
+              </p>
+              <p className="text-xs font-semibold tracking-widest text-zinc-300 uppercase">kcal est.</p>
+            </div>
           </div>
           {feedback && (
             <p
@@ -352,7 +405,7 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
             </p>
           )}
           {stage === "active" && !hud.tracking && (
-            <p className="rounded-2xl bg-red-500/90 px-4 py-2 text-center text-sm font-semibold">
+            <p className="rounded-2xl bg-red-600 px-4 py-2 text-center text-sm font-semibold">
               {hud.person ? `${missingText(hud.person, hud.missing)}: step back so your whole body is in frame` : "Step into the frame"}
             </p>
           )}
@@ -391,6 +444,13 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
                 {showTips ? "Hide tips" : "Show tips"}
               </button>
             </div>
+            <WeightSetting
+              profile={profile}
+              onChange={(next) => {
+                setProfile(next);
+                saveProfile(next);
+              }}
+            />
             {showTips && (
               <ul className="mt-2 space-y-1.5 text-sm text-zinc-300">
                 {exercise.setup.instructions.map((line) => (
@@ -463,7 +523,7 @@ export function WorkoutFlow({ exerciseId }: { exerciseId: string }) {
           )}
           <button
             onClick={end}
-            className="min-w-32 rounded-2xl bg-red-500 px-6 py-4 text-lg font-bold hover:bg-red-600"
+            className="min-w-32 rounded-2xl bg-red-600 px-6 py-4 text-lg font-bold hover:bg-red-700"
           >
             End
           </button>

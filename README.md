@@ -145,7 +145,21 @@ Safety rails (all covered by tests):
 4. Test with card `4242 4242 4242 4242`, any future date and any CVC.
 5. When you're ready for real money, switch to your live key (`sk_live_…`).
 
-> **Limitations:** Pro lives in a browser cookie (plus any devices linked by QR). If someone clears their cookies on every device, they need support to recover access. Adding user accounts (e.g. Auth.js or Clerk) and storing the Stripe customer ID against the user would remove this limit. Before charging real customers, also add Terms of Service and Privacy Policy pages and a support contact.
+> **Limitation:** Pro lives in a browser cookie (plus any devices linked by QR). If someone clears their cookies on every device, they need support to recover access. Adding user accounts (e.g. Auth.js or Clerk) and storing the Stripe customer ID against the user would remove this limit.
+
+### Legal pages
+
+`/terms`, `/privacy` and `/refunds` are linked in every page footer and next to the Subscribe button, along with a clear auto-renewal notice. They describe what the app actually does: video stays on the device, Stripe handles payments, and there's one signed cookie. Fill in your details with environment variables, with no code changes:
+
+| Variable | Example |
+| --- | --- |
+| `FORMAI_BUSINESS_NAME` | `Jane Smith Fitness LLC` |
+| `FORMAI_SUPPORT_EMAIL` | `support@yourdomain.com` |
+| `FORMAI_GOVERNING_LAW` | `the State of California, USA` |
+
+The refund policy offers a **full refund within 7 days of the first payment**. Edit `app/refunds/page.tsx` if you want different terms. After changing any policy, update `lastUpdated` in `lib/legal.ts`.
+
+> These pages are a solid, plain-English starting point, not legal advice. Have a lawyer review them for your country before you take real payments. In your Stripe dashboard, also set your public business details and support email (Settings → Public details), and the Terms and Privacy URLs.
 
 ## Testing
 
@@ -169,7 +183,7 @@ CI (`.github/workflows/ci.yml`) runs lint, typecheck, unit and e2e tests on ever
 
 1. Push this repo to GitHub.
 2. In Vercel, click **Add New → Project**, then import the repo. The framework is auto-detected as Next.js, so there's nothing to configure.
-3. Under **Settings → Environment Variables**, add `STRIPE_SECRET_KEY`, `FORMAI_COOKIE_SECRET` and `NEXT_PUBLIC_SITE_URL=https://<your-app>.vercel.app`. Without the Stripe key the site still deploys, but every workout stays locked and checkout reports that payments aren't set up.
+3. Under **Settings → Environment Variables**, add `STRIPE_SECRET_KEY`, `FORMAI_COOKIE_SECRET`, `NEXT_PUBLIC_SITE_URL=https://<your-app>.vercel.app`, and your business details (`FORMAI_BUSINESS_NAME`, `FORMAI_SUPPORT_EMAIL`, `FORMAI_GOVERNING_LAW`). Without the Stripe key the site still deploys, but every workout stays locked and checkout reports that payments aren't set up.
 4. Deploy. Vercel serves over HTTPS, so the camera works on phones right away.
 
 Or use the CLI: `npm i -g vercel && vercel --prod`.

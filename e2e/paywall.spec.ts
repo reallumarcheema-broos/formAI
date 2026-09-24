@@ -18,6 +18,12 @@ test("@ui visitors see $14.99/month and every exercise locked", async ({ page })
   await page.goto("/pricing");
   await expect(page.getByTestId("price")).toHaveText("$14.99 / month (USD)");
   await expect(page.getByRole("button", { name: "Subscribe for $14.99/month" })).toBeVisible();
+  // Auto-renewal is disclosed right next to the button, with links to the policies.
+  const terms = page.getByTestId("renewal-terms");
+  await expect(terms).toContainText("Renews automatically at $14.99/month until you cancel");
+  await expect(terms.getByRole("link", { name: "Terms" })).toHaveAttribute("href", "/terms");
+  await expect(terms.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute("href", "/privacy");
+  await expect(terms.getByRole("link", { name: "Refund Policy" })).toHaveAttribute("href", "/refunds");
 });
 
 test("@ui every workout redirects visitors to pricing", async ({ page }) => {

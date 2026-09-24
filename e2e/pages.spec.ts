@@ -34,6 +34,9 @@ for (const [path, heading] of [
   ["/", /Your AI form coach/],
   ["/pricing", /One plan\. Every exercise\./],
   ["/account", /Account/],
+  ["/terms", /Terms of Service/],
+  ["/privacy", /Privacy Policy/],
+  ["/refunds", /Refund Policy/],
 ] as const) {
   test(`@ui ${path} renders cleanly for a visitor`, async ({ page }) => {
     const errors = trackErrors(page);
@@ -79,6 +82,28 @@ test("@ui header navigation works", async ({ page }) => {
   await expect(page).toHaveURL("/account");
   await page.getByRole("link", { name: /FormAI/ }).first().click();
   await expect(page).toHaveURL("/");
+});
+
+test("@ui footer links to the legal pages from every page", async ({ page }) => {
+  for (const path of ["/", "/pricing", "/account"]) {
+    await page.goto(path);
+    const legal = page.getByRole("navigation", { name: "Legal" });
+    await expect(legal.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "/terms");
+    await expect(legal.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute("href", "/privacy");
+    await expect(legal.getByRole("link", { name: "Refund Policy" })).toHaveAttribute("href", "/refunds");
+  }
+  await page.getByRole("navigation", { name: "Legal" }).getByRole("link", { name: "Refund Policy" }).click();
+  await expect(page).toHaveURL("/refunds");
+  await expect(page.getByText(/within 7 days of your first payment/)).toBeVisible();
+});
+
+test("@ui legal pages state the real price and on-device privacy", async ({ page }) => {
+  await page.goto("/terms");
+  await expect(page.getByText("$14.99 USD per month").first()).toBeVisible();
+  await expect(page.getByText(/renews automatically every month/)).toBeVisible();
+  await page.goto("/privacy");
+  await expect(page.getByText(/never recorded, stored or sent/)).toBeVisible();
+  await expect(page.getByText("formai_pro")).toBeVisible();
 });
 
 test("@ui security headers are set", async ({ request }) => {

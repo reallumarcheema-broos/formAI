@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import Link from "next/link";
 import QRCode from "qrcode";
+import { ContactLink } from "@/components/LegalPage";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { PRO_PLAN } from "@/lib/billing/plans";
@@ -137,7 +138,7 @@ export default async function AccountPage({
         {status.paywallEnabled && (
           <p className="mt-4 text-xs text-zinc-400">
             Your subscription is saved in this browser. Use “Manage billing” to update your card, download invoices or
-            cancel. Need help? Contact support with the email you used at checkout.
+            cancel. Need help? Email <ContactLink /> from the address you used at checkout.
           </p>
         )}
       </main>

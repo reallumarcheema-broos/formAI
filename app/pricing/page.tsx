@@ -91,8 +91,21 @@ export default async function PricingPage({
             ) : (
               <>
                 <CheckoutButton exerciseId={exercise?.id} />
-                <p className="mt-2 text-center text-xs text-zinc-400">
-                  Secure checkout by Stripe · Billed monthly · Cancel anytime
+                <p className="mt-3 text-center text-xs leading-relaxed text-zinc-400" data-testid="renewal-terms">
+                  Renews automatically at {PRO_PLAN.priceLabel}/month until you cancel. Cancel anytime in Account →
+                  Manage billing. By subscribing you agree to our{" "}
+                  <Link href="/terms" className="underline underline-offset-2 hover:text-white">
+                    Terms
+                  </Link>
+                  ,{" "}
+                  <Link href="/privacy" className="underline underline-offset-2 hover:text-white">
+                    Privacy Policy
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/refunds" className="underline underline-offset-2 hover:text-white">
+                    Refund Policy
+                  </Link>
+                  . Secure checkout by Stripe.
                 </p>
               </>
             )}
@@ -125,7 +138,11 @@ export default async function PricingPage({
             <h3 className="font-medium">How do I cancel?</h3>
             <p className="text-zinc-400">
               Open your Account page and choose “Manage billing”. You keep access until the end of the period you
-              paid for.
+              paid for. New subscribers can get a full refund within 7 days. See the{" "}
+              <Link href="/refunds" className="text-accent underline underline-offset-2">
+                Refund Policy
+              </Link>
+              .
             </p>
           </div>
           <div>

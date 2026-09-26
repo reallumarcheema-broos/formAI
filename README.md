@@ -1,6 +1,6 @@
 # FormAI: AI form coach & camera calorie tracker
 
-Prop up your phone or laptop, pick an exercise, and FormAI tracks your body through the camera. It counts reps, **estimates the calories you burn**, and **tells you out loud when your form is wrong**, during the set. Every workout feeds a **Progress** dashboard with daily calorie goals, streaks and a form score. **Everything runs in the browser, and no video is ever uploaded.**
+Prop up your phone or laptop, pick an exercise, and FormAI tracks your body through the camera. It counts reps, **estimates the calories you burn**, and **tells you out loud when your form is wrong**, during the set. A **food photo scanner** estimates the calories in your meals. A **Progress** dashboard shows calories in vs. out, daily goals, streaks and a form score. **Pose tracking runs in the browser, and workout video is never uploaded.**
 
 - **Next.js 16** (App Router) + TypeScript + Tailwind CSS v4
 - **MediaPipe Pose Landmarker** (`@mediapipe/tasks-vision`), running on-device via WebAssembly/WebGL
@@ -49,12 +49,21 @@ Calories are estimated with the standard ACSM formula, `kcal/min = MET × 3.5 ×
 
 Workout history, weight and daily goal are stored in the browser's `localStorage` only (`lib/fitness/history.ts`, `lib/fitness/profile.ts`), consistent with the "nothing leaves your device" promise. The Privacy Policy describes this.
 
+### Food photo scanner
+
+`/food` lets subscribers photograph a meal (or pick one from the gallery). The photo is resized on the device (max 1024px JPEG) and sent to `POST /api/food/analyze`. That route calls **Claude's vision API** (`claude-opus-5` by default; `lib/food/analyze.ts`) with a JSON-schema structured output, so the answer is always parseable. It returns the foods, portions, calories and macros. The prompt tells the model to recognise South Asian dishes (biryani, daal, roti, karahi…) and to count cooking oil and ghee. Refusals are retried on Anthropic's recommended fallback model (`fallbacks: "default"`). Users can adjust portions (×½ to ×2), remove items, and save the meal to a local food log, or add food manually.
+
+- **Setup:** set `ANTHROPIC_API_KEY`. Without it, the scanner shows "not set up" and everything else works.
+- **Cost:** about $0.02–0.03 per scan. Each subscriber is limited to `FORMAI_FOOD_DAILY_LIMIT` scans a day (default 10), so one user costs at most about $7.50/month, typically about $2. Use `FORMAI_FOOD_MODEL` to pick a different Claude model.
+- **Privacy:** photos are forwarded to Anthropic for analysis and not stored by FormAI. The food log lives in `localStorage` (`formai:food`). The Privacy Policy and Terms describe this.
+
 ### Folder structure
 
 ```
 app/
   page.tsx                  Home + exercise picker
   progress/                 Calorie tracker dashboard
+  food/                     Food photo scanner (+ api/food/analyze)
   pricing/ account/         Subscription pages (account also shows the device-link QR code)
   workout/[exercise]/       Workout route (server-side paywall check)
   api/checkout/             Stripe Checkout (+ /confirm callback)
@@ -67,7 +76,8 @@ components/
 lib/
   pose/                     landmarks, angle math, smoothing, visibility checks, detector, camera, drawing
   exercises/                engine.ts (generic), types.ts, squat.ts, pushup.ts, lunge.ts, index.ts (registry)
-  fitness/                  calorie estimates, workout history, weight/goal profile
+  fitness/                  calorie estimates, workout history, food log, weight/goal profile
+  food/                     Claude vision analysis, scan rate limit
   voice/                    VoiceCoach (cooldowns, iOS unlock), number words
   billing/                  plans, Stripe client, signed cookie, subscription status
 tests/                      Vitest unit tests
@@ -130,6 +140,8 @@ Tips:
 
 ## Subscription ($14.99/month with Stripe)
 
+> **Selling from Pakistan (or another country Stripe doesn't support)?** Stripe only onboards businesses based in its [supported countries](https://stripe.com/global), and Pakistan isn't one of them. Use a *merchant of record* such as Paddle, Lemon Squeezy or Dodo Payments instead: they sell to the customer on your behalf, handle global sales tax/VAT, and pay out to Pakistan (via Payoneer, Wise or bank wire). The billing code is isolated in `lib/billing/` and `app/api/checkout|billing-portal/`, so it can be swapped for one of these.
+
 FormAI is paid: **every workout requires FormAI Pro at $14.99/month (USD)**. Visitors can browse the home and pricing pages. Opening any workout sends them to pricing.
 
 The purchase flow needs no database:
@@ -178,8 +190,8 @@ The refund policy offers a **full refund within 7 days of the first payment**. E
 ## Testing
 
 ```bash
-npm test            # 48 unit tests: angles, depth math, rep state machine, form rules, calories, history, signed tokens
-npm run test:e2e    # 107 end-to-end tests (desktop Chrome + iPhone and Android viewports)
+npm test            # 52 unit tests: angles, depth math, rep state machine, form rules, calories, history, food log, signed tokens
+npm run test:e2e    # 119 end-to-end tests (desktop Chrome + iPhone and Android viewports)
 ```
 
 The e2e suite builds the app, starts it with `next start`, and points Stripe at **`e2e/mock-stripe.mjs`**, a local fake of the Stripe API with fake hosted Checkout and Billing Portal pages. That lets it test the whole paid flow offline:
@@ -189,6 +201,7 @@ The e2e suite builds the app, starts it with `next start`, and points Stripe at 
 - **Security:** forged, tampered or wrong-kind cookies, canceled or unknown subscriptions, unpaid sessions and made-up session ids are rejected. Security headers are set.
 - **Device link:** QR link unlocks a fresh device. Expired, forged or canceled links are rejected.
 - **Workout with the real pose model on real photos of people.** The camera is replaced with a canvas that shows a standing man and a man with his front knee bent like the bottom of a lunge (public MediaPipe test images, downloaded once into `e2e/.cache`). The tests check: the setup check turns green, the skeleton is drawn, standing still never counts, a real lunge counts and is spoken ("One", "Two"), pause/resume, mute is remembered, the out-of-frame warning, camera switching, a denied camera, and the summary.
+- **Food scanner:** scan → items and totals → portion changes → remove → log, persisted to Progress. Verifies the request sent to Claude (model, JSON schema, fallback beta), that big photos are resized to 1024px, not-food/refusal/outage messages, malformed-image rejection, manual entry, and that visitors are blocked. Uses `e2e/mock-anthropic.mjs`, so tests cost nothing.
 - **Calories & progress:** live calorie counter, calories on the summary, sets saved and shown on the Progress page, weight and goal settings with validation, 7-day chart tooltip, streak and form score, clearing history.
 - **Every page:** no console errors, no sideways scrolling on phones, and no serious or critical accessibility (axe) violations, including the Progress chart and the workout screen.
 

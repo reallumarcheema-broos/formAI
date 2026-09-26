@@ -9,7 +9,7 @@ import { getProStatus } from "@/lib/billing/subscription";
  * POST /api/checkout: start a Stripe Checkout session for FormAI Pro ($14.99/month)
  * and redirect the browser to Stripe's hosted payment page.
  *
- * Optional form field `exercise`: the workout to open right after payment.
+ * Optional form field `exercise`: the workout (or "food" scanner) to open right after payment.
  */
 export async function POST(request: Request) {
   const origin = getOrigin(request);
@@ -23,7 +23,9 @@ export async function POST(request: Request) {
 
   const form = await request.formData().catch(() => null);
   const exerciseField = form?.get("exercise");
-  const exercise = typeof exerciseField === "string" ? getExercise(exerciseField) : undefined;
+  // Where to go after payment: a known exercise, or "food" for the food scanner.
+  const next =
+    exerciseField === "food" ? "food" : typeof exerciseField === "string" ? getExercise(exerciseField)?.id : undefined;
 
   // Use a Price from the Stripe dashboard if provided; otherwise define it inline.
   const priceId = process.env.STRIPE_PRICE_ID;
@@ -40,9 +42,9 @@ export async function POST(request: Request) {
       };
 
   const successUrl = new URL(`${origin}/api/checkout/confirm`);
-  if (exercise) successUrl.searchParams.set("exercise", exercise.id);
+  if (next) successUrl.searchParams.set("exercise", next);
   // Stripe substitutes this placeholder, so append it unencoded.
-  const successHref = `${successUrl.toString()}${exercise ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`;
+  const successHref = `${successUrl.toString()}${next ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`;
 
   try {
     const session = await getStripe().checkout.sessions.create({
@@ -51,7 +53,7 @@ export async function POST(request: Request) {
       allow_promotion_codes: true,
       billing_address_collection: "auto",
       success_url: successHref,
-      cancel_url: `${origin}/pricing?canceled=1${exercise ? `&exercise=${exercise.id}` : ""}`,
+      cancel_url: `${origin}/pricing?canceled=1${next ? `&exercise=${next}` : ""}`,
     });
     if (!session.url) throw new Error("Stripe did not return a checkout URL");
     return NextResponse.redirect(session.url, 303);

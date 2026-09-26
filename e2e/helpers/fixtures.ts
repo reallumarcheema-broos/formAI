@@ -10,6 +10,8 @@ export const FIXTURES = {
   standing: "https://storage.googleapis.com/mediapipe-assets/male_full_height_hands.jpg",
   /** A man in a warrior-II pose: front knee deeply bent, like the bottom of a lunge. */
   warrior: "https://storage.googleapis.com/mediapipe-assets/pose.jpg",
+  /** A burger on a plate, for the food scanner. */
+  burger: "https://storage.googleapis.com/mediapipe-assets/burger.jpg",
 } as const;
 
 export function fixturePath(name: keyof typeof FIXTURES): string {

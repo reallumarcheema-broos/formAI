@@ -43,6 +43,12 @@ export default async function PricingPage({
           </p>
         </section>
 
+        {params.exercise === "food" && !isPro && (
+          <p className="mb-4 rounded-2xl border border-amber/40 bg-card p-3 text-center text-sm">
+            <span aria-hidden>📸</span> Subscribe to use the <strong>AI food photo scanner</strong>. You&apos;ll go straight
+            to it after checkout.
+          </p>
+        )}
         {exercise && !isPro && (
           <p className="mb-4 rounded-2xl border border-amber/40 bg-card p-3 text-center text-sm">
             <span aria-hidden>{exercise.icon}</span> Subscribe to start your <strong>{exercise.name}</strong> workout.
@@ -81,7 +87,7 @@ export default async function PricingPage({
             {isPro ? (
               <div className="flex flex-col gap-2">
                 <Link
-                  href={exercise ? `/workout/${exercise.id}` : "/"}
+                  href={params.exercise === "food" ? "/food" : exercise ? `/workout/${exercise.id}` : "/"}
                   className="rounded-full bg-cream px-5 py-4 text-center text-lg font-semibold text-ink hover:bg-white"
                 >
                   You&apos;re subscribed: start a workout
@@ -92,7 +98,7 @@ export default async function PricingPage({
               </div>
             ) : (
               <>
-                <CheckoutButton exerciseId={exercise?.id} />
+                <CheckoutButton exerciseId={params.exercise === "food" ? "food" : exercise?.id} />
                 <p className="mt-4 text-center text-xs leading-relaxed text-muted-dark" data-testid="renewal-terms">
                   Renews automatically at {PRO_PLAN.priceLabel}/month until you cancel. Cancel anytime in Account →
                   Manage billing. By subscribing you agree to our{" "}

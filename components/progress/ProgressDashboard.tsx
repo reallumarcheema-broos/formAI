@@ -13,6 +13,7 @@ import {
   loadHistory,
   type WorkoutRecord,
 } from "@/lib/fitness/history";
+import { foodForDay, loadFood, sumFood } from "@/lib/fitness/food";
 import { LB_PER_KG, formatWeight, loadProfile, parseWeight, saveProfile, type Profile } from "@/lib/fitness/profile";
 import { CaloriesChart } from "./CaloriesChart";
 
@@ -56,6 +57,7 @@ export function ProgressDashboard({ canTrain }: { canTrain: boolean }) {
   const [profile, setProfile] = useState<Profile>(loadProfile);
   const [editing, setEditing] = useState(false);
   const [now] = useState(() => Date.now());
+  const [eatenToday] = useState(() => sumFood(foodForDay(loadFood(), Date.now())).kcal);
 
   const days = useMemo(() => dailyTotals(history, now, 7), [history, now]);
   const today = days[days.length - 1];
@@ -123,6 +125,36 @@ export function ProgressDashboard({ canTrain }: { canTrain: boolean }) {
             <p className="text-xs text-muted">in a row with a workout</p>
           </div>
         </div>
+      </section>
+
+      {/* ---- Calories in vs. out ---- */}
+      <section aria-label="Calories in and out today" className="mt-3 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-line bg-card p-5">
+        <div className="flex flex-wrap gap-x-8 gap-y-2">
+          <div>
+            <p className="text-sm text-muted">Eaten today</p>
+            <p className="text-2xl font-semibold tabular-nums" data-testid="progress-eaten">
+              {Math.round(eatenToday)} <span className="text-sm font-medium text-muted">kcal</span>
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-muted">Burned in workouts</p>
+            <p className="text-2xl font-semibold tabular-nums">
+              {Math.round(today.kcal)} <span className="text-sm font-medium text-muted">kcal</span>
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-muted">Net (eaten − burned)</p>
+            <p className="text-2xl font-semibold tabular-nums" data-testid="progress-net">
+              {Math.round(eatenToday - today.kcal)} <span className="text-sm font-medium text-muted">kcal</span>
+            </p>
+          </div>
+        </div>
+        <Link
+          href={canTrain ? "/food" : "/pricing?exercise=food"}
+          className="inline-flex items-center gap-2 rounded-full bg-sand px-5 py-2.5 font-semibold hover:bg-sand-deep"
+        >
+          📸 Scan a meal
+        </Link>
       </section>
 
       {history.length === 0 ? (

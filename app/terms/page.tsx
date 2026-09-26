@@ -21,7 +21,7 @@ export default function TermsPage() {
       <h2>1. What FormAI does</h2>
       <p>
         FormAI uses your device&apos;s camera and on-device machine learning to track your body, count repetitions,
-        estimate calories burned and give spoken and on-screen form cues. Video is processed in your browser and is never uploaded to us. See
+        estimate calories burned and give spoken and on-screen form cues. Workout video is processed in your browser and is never uploaded to us. The optional food scanner sends photos you choose to our AI provider to estimate their nutrition. See
         our <Link href="/privacy">Privacy Policy</Link>.
       </p>
 
@@ -39,6 +39,10 @@ export default function TermsPage() {
         <li>
           <strong>Calorie numbers are estimates</strong>, based on your body weight, the exercise and your pace. Actual
           energy use varies from person to person. Don&apos;t rely on them for medical or dietary decisions.
+        </li>
+        <li>
+          <strong>Food scans are estimates too.</strong> AI can misidentify foods, portions, oils and ingredients. Never
+          rely on FormAI for allergies, diabetes or any medical diet; check labels and ask a professional.
         </li>
         <li>Stop immediately if you feel pain, dizziness or shortness of breath.</li>
         <li>

@@ -153,7 +153,7 @@ export function ProgressDashboard({ canTrain }: { canTrain: boolean }) {
           href={canTrain ? "/food" : "/pricing?exercise=food"}
           className="inline-flex items-center gap-2 rounded-full bg-sand px-5 py-2.5 font-semibold hover:bg-sand-deep"
         >
-          📸 Scan a meal
+          🍽️ Log food
         </Link>
       </section>
 

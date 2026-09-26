@@ -1,11 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
-import { AI_PORT, APP_PORT, E2E_COOKIE_SECRET, STRIPE_PORT } from "./e2e/helpers/constants";
+import { APP_PORT, E2E_COOKIE_SECRET, STRIPE_PORT } from "./e2e/helpers/constants";
 
 /**
- * End-to-end tests run against a production build (`next start`) wired to
- * local mocks of the Stripe API (e2e/mock-stripe.mjs) and the Anthropic API
- * (e2e/mock-anthropic.mjs), so the paid flow and the food scanner can be
- * exercised without real payments, API costs or network access.
+ * End-to-end tests run against a production build (`next start`) wired to a
+ * local mock of the Stripe API (e2e/mock-stripe.mjs), so the whole paid flow
+ * can be exercised without real payments or network access to Stripe.
  */
 const PORT = APP_PORT;
 
@@ -45,12 +44,6 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
     },
     {
-      command: "node e2e/mock-anthropic.mjs",
-      url: `http://localhost:${AI_PORT}/health`,
-      env: { MOCK_AI_PORT: String(AI_PORT) },
-      reuseExistingServer: !process.env.CI,
-    },
-    {
       command: `npm run build && npx next start -p ${PORT}`,
       url: `http://localhost:${PORT}/pricing`,
       timeout: 240_000,
@@ -58,10 +51,6 @@ export default defineConfig({
         STRIPE_SECRET_KEY: "sk_test_e2e",
         STRIPE_API_BASE: `http://localhost:${STRIPE_PORT}`,
         FORMAI_COOKIE_SECRET: E2E_COOKIE_SECRET,
-        ANTHROPIC_API_KEY: "sk-ant-test",
-        ANTHROPIC_BASE_URL: `http://localhost:${AI_PORT}`,
-        // The suite scans more than a real user would in a day.
-        FORMAI_FOOD_DAILY_LIMIT: "100",
       },
       reuseExistingServer: !process.env.CI,
     },

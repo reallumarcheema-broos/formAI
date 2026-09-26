@@ -14,8 +14,6 @@ export interface FoodEntry {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
-  /** True if it came from a photo scan (vs. typed in manually). */
-  scanned: boolean;
 }
 
 const KEY = "formai:food";

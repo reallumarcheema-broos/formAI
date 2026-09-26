@@ -45,8 +45,8 @@ export default async function PricingPage({
 
         {params.exercise === "food" && !isPro && (
           <p className="mb-4 rounded-2xl border border-amber/40 bg-card p-3 text-center text-sm">
-            <span aria-hidden>📸</span> Subscribe to use the <strong>AI food photo scanner</strong>. You&apos;ll go straight
-            to it after checkout.
+            <span aria-hidden>🍽️</span> Subscribe to use the <strong>food log</strong>. You&apos;ll go straight to it after
+            checkout.
           </p>
         )}
         {exercise && !isPro && (

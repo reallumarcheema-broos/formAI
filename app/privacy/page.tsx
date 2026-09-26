@@ -13,8 +13,8 @@ export default function PrivacyPage() {
     <LegalPage title="Privacy Policy">
       <p>
         This policy explains what information {b} (&ldquo;we&rdquo;) handles when you use FormAI, and why. In short:{" "}
-        <strong>your workout camera video never leaves your device</strong>, food photos you choose to scan are
-        analysed and not kept, we don&apos;t run ads or analytics, and we never sell your data.
+        <strong>your camera video never leaves your device</strong>, we don&apos;t run ads or analytics, and we never
+        sell your data.
       </p>
 
       <h2>1. Your camera and body data stays on your device</h2>
@@ -28,23 +28,7 @@ export default function PrivacyPage() {
         <li>You can deny or revoke camera permission at any time in your browser settings.</li>
       </ul>
 
-      <h2>2. Food photos you scan</h2>
-      <ul>
-        <li>
-          When you use the food scanner, the photo you choose is resized on your device and sent over an encrypted
-          connection to our server, which forwards it to our AI provider, <strong>Anthropic</strong>, to estimate the
-          food&apos;s calories and nutrients.
-        </li>
-        <li>
-          <strong>FormAI does not store your food photos.</strong> They are processed to return the estimate and then
-          discarded by our server. Anthropic processes them under its commercial terms and privacy policy
-          (anthropic.com/legal).
-        </li>
-        <li>Only scan photos of food. Avoid including people, documents or anything private in the frame.</li>
-        <li>The resulting food log is saved only in your browser (see below).</li>
-      </ul>
-
-      <h2>3. Other information we handle</h2>
+      <h2>2. Information we do handle</h2>
       <ul>
         <li>
           <strong>Payment and billing details.</strong> When you subscribe, Stripe collects your email address, payment
@@ -76,7 +60,7 @@ export default function PrivacyPage() {
         </li>
       </ul>
 
-      <h2>4. Why we use it</h2>
+      <h2>3. Why we use it</h2>
       <ul>
         <li>to provide FormAI and unlock workouts for paying subscribers (performing our contract with you);</li>
         <li>to process payments, prevent fraud and meet tax and accounting obligations (legal obligation);</li>
@@ -85,16 +69,13 @@ export default function PrivacyPage() {
       </ul>
       <p>We don&apos;t use your information for advertising, and we don&apos;t sell or rent it to anyone.</p>
 
-      <h2>5. Who we share it with</h2>
+      <h2>4. Who we share it with</h2>
       <ul>
         <li>
           <strong>Stripe</strong>, which processes payments and manages subscriptions (see stripe.com/privacy).
         </li>
         <li>
           <strong>Vercel</strong>, which hosts this website and processes server logs.
-        </li>
-        <li>
-          <strong>Anthropic</strong>, which analyses food photos you choose to scan (and nothing else).
         </li>
         <li>
           <strong>Google</strong>: when a workout starts, your browser downloads the pose-detection model file from
@@ -108,14 +89,14 @@ export default function PrivacyPage() {
         safeguards such as standard contractual clauses.
       </p>
 
-      <h2>6. How long we keep it</h2>
+      <h2>5. How long we keep it</h2>
       <p>
         Billing records are kept as long as tax and accounting law requires (usually up to 7 years). The subscription
         cookie stays in your browser until it expires or you clear it. Support emails are kept while needed to help
         you and then deleted.
       </p>
 
-      <h2>7. Your rights</h2>
+      <h2>6. Your rights</h2>
       <p>
         Depending on where you live (for example under the GDPR in the EU/UK or the CCPA in California), you may have
         the right to access, correct, delete or export your personal information, to object to or restrict how we use
@@ -126,24 +107,24 @@ export default function PrivacyPage() {
         You can remove the subscription cookie at any time by clearing your browser&apos;s cookies for this site.
       </p>
 
-      <h2>8. Children</h2>
+      <h2>7. Children</h2>
       <p>
         FormAI isn&apos;t directed at children under 13, and we don&apos;t knowingly collect information from them. If
         you believe a child has given us information, contact us and we&apos;ll delete it.
       </p>
 
-      <h2>9. Security</h2>
+      <h2>8. Security</h2>
       <p>
         We use HTTPS everywhere, sign our cookies, and rely on Stripe&apos;s PCI-compliant systems for payments. No
         method is 100% secure, but we keep what we hold to a minimum.
       </p>
 
-      <h2>10. Changes</h2>
+      <h2>9. Changes</h2>
       <p>
         We&apos;ll update the date at the top when this policy changes and tell subscribers about significant changes.
       </p>
 
-      <h2>11. Contact</h2>
+      <h2>10. Contact</h2>
       <p>
         {b}: <ContactLink />
       </p>

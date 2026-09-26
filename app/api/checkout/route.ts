@@ -9,7 +9,7 @@ import { getProStatus } from "@/lib/billing/subscription";
  * POST /api/checkout: start a Stripe Checkout session for FormAI Pro ($14.99/month)
  * and redirect the browser to Stripe's hosted payment page.
  *
- * Optional form field `exercise`: the workout (or "food" scanner) to open right after payment.
+ * Optional form field `exercise`: the workout (or the "food" log) to open right after payment.
  */
 export async function POST(request: Request) {
   const origin = getOrigin(request);
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
   const form = await request.formData().catch(() => null);
   const exerciseField = form?.get("exercise");
-  // Where to go after payment: a known exercise, or "food" for the food scanner.
+  // Where to go after payment: a known exercise, or "food" for the food log.
   const next =
     exerciseField === "food" ? "food" : typeof exerciseField === "string" ? getExercise(exerciseField)?.id : undefined;
 

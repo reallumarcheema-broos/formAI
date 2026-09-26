@@ -3,7 +3,7 @@ import { LogoMark } from "./icons";
 
 const NAV = [
   { href: "/#features", label: "Features" },
-  { href: "/food", label: "Food scan" },
+  { href: "/food", label: "Food log" },
   { href: "/progress", label: "Progress" },
   { href: "/pricing", label: "Pricing" },
   { href: "/account", label: "Account" },

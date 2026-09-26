@@ -3,7 +3,7 @@ import { getExercise } from "@/lib/exercises";
 
 /**
  * Where to send someone after they unlock Pro. Only known exercise ids (and
- * "food" for the food scanner) are accepted, so this can never become an open redirect.
+ * "food" for the food log) are accepted, so this can never become an open redirect.
  */
 export function postPurchasePath(exerciseId: string | null | undefined): string {
   if (exerciseId === "food") return "/food";

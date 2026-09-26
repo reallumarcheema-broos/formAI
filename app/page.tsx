@@ -22,7 +22,7 @@ import { EXERCISES } from "@/lib/exercises";
 const FEATURES = [
   { icon: WaveIcon, title: "Real-time form check", body: "Hear it the moment form slips" },
   { icon: FlameIcon, title: "Calories burned", body: "Estimated live from every rep" },
-  { icon: CameraIcon, title: "Food photo scanner", body: "Snap a meal, get its calories" },
+  { icon: ChartIcon, title: "Food log", body: "Calories in vs. calories out" },
   { icon: ShieldIcon, title: "Private by design", body: "Video never leaves your phone" },
 ];
 
@@ -101,7 +101,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
               </Link>
             </div>
             <p className="mt-5 flex items-center gap-2 text-sm text-muted">
-              <ShieldIcon className="h-4 w-4 text-amber-ink" /> Pose tracking runs on your device. Your workout video is never uploaded.
+              <ShieldIcon className="h-4 w-4 text-amber-ink" /> 100% on-device. Your video is never uploaded.
             </p>
           </div>
           <div className="px-4 sm:px-8">
@@ -248,56 +248,60 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
           </div>
         </section>
 
-        {/* ---- Food scanner ------------------------------------------------------ */}
+        {/* ---- Food log --------------------------------------------------------- */}
         <section aria-labelledby="food-title" className="mx-auto grid max-w-6xl gap-10 px-4 pt-24 sm:px-6 lg:grid-cols-2 lg:items-center">
           <div>
-            <p className="eyebrow text-amber-ink">AI food photo scanner</p>
+            <p className="eyebrow text-amber-ink">Food log</p>
             <h2 id="food-title" className="font-display mt-2 text-4xl leading-[1.02] font-bold sm:text-5xl">
-              Snap your meal.
+              Calories in.
               <br />
-              Know your calories.
+              Calories out.
             </h2>
             <p className="mt-5 max-w-md text-muted">
-              Take a photo of your plate and FormAI estimates the calories, protein, carbs and fat in seconds. It
-              recognises everyday dishes from biryani, daal and roti to burgers and salads. Adjust the portion, save
-              it to your food log, and see calories in vs. calories out.
+              Log what you eat in a few taps, with quick picks for everyday foods like roti, daal and chai, and see it
+              next to the calories you burn in your workouts.
             </p>
             <Link
               href={isPro ? "/food" : "/pricing?exercise=food"}
               className="mt-6 inline-flex items-center gap-2 rounded-full bg-espresso px-6 py-3.5 font-semibold text-cream hover:bg-espresso-2"
             >
-              <CameraIcon className="h-5 w-5" /> {isPro ? "Scan a meal" : "Try the food scanner"}
+              {isPro ? "Log a meal" : "Get started"} <ArrowIcon className="h-4 w-4" />
             </Link>
           </div>
           <div className="rounded-[2rem] bg-espresso p-6 text-cream shadow-[0_30px_80px_-30px_rgba(28,22,19,0.6)]">
             <div className="flex items-center justify-between">
-              <p className="flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
-                <CameraIcon className="h-5 w-5 text-amber-bright" /> Meal scanned
-              </p>
+              <p className="text-sm font-semibold tracking-wide uppercase">Today</p>
               <p className="text-xs text-muted-dark">Example</p>
             </div>
             <ul className="mt-5 divide-y divide-white/10">
               {[
-                ["Chicken biryani", "1 plate · ~350 g", 640],
-                ["Raita", "1 small bowl", 90],
-                ["Kachumber salad", "½ cup", 35],
-              ].map(([name, portion, kcal]) => (
-                <li key={name} className="flex items-center justify-between py-3">
+                ["Breakfast", "Paratha & chai", 390],
+                ["Lunch", "Chicken biryani", 650],
+                ["Dinner", "Daal & 2 rotis", 470],
+              ].map(([meal, food, kcal]) => (
+                <li key={meal} className="flex items-center justify-between py-3">
                   <span>
-                    <span className="block font-semibold">{name}</span>
-                    <span className="block text-xs text-muted-dark">{portion}</span>
+                    <span className="block font-semibold">{food}</span>
+                    <span className="block text-xs text-muted-dark">{meal}</span>
                   </span>
                   <span className="font-semibold tabular-nums">{kcal} kcal</span>
                 </li>
               ))}
             </ul>
-            <div className="mt-4 flex items-end justify-between border-t border-white/10 pt-4">
-              <p className="text-sm text-muted-dark">Total</p>
-              <p className="text-4xl font-semibold tabular-nums">
-                765 <span className="text-base font-medium text-muted-dark">kcal</span>
-              </p>
+            <div className="mt-4 grid grid-cols-3 gap-3 border-t border-white/10 pt-4 text-center">
+              <div>
+                <p className="text-xs text-muted-dark">Eaten</p>
+                <p className="text-2xl font-semibold tabular-nums">1,510</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-dark">Burned</p>
+                <p className="text-2xl font-semibold text-amber-bright tabular-nums">184</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-dark">Net</p>
+                <p className="text-2xl font-semibold tabular-nums">1,326</p>
+              </div>
             </div>
-            <p className="mt-2 text-right text-xs text-muted-dark">P 32g · C 88g · F 30g</p>
           </div>
         </section>
 
